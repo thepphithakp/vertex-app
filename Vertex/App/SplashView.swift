@@ -25,26 +25,7 @@ struct SplashView: View {
             )
             .ignoresSafeArea()
             
-            // Subtle Grid Overlay
-            GeometryReader { geometry in
-                Path { path in
-                    let width = geometry.size.width
-                    let height = geometry.size.height
-                    let step: CGFloat = 40
-                    
-                    for x in stride(from: 0, through: width, by: step) {
-                        path.move(to: CGPoint(x: x, y: 0))
-                        path.addLine(to: CGPoint(x: x, y: height))
-                    }
-                    for y in stride(from: 0, through: height, by: step) {
-                        path.move(to: CGPoint(x: 0, y: y))
-                        path.addLine(to: CGPoint(x: width, y: y))
-                    }
-                }
-                .stroke(Color.white.opacity(0.1), lineWidth: 0.5)
-            }
-            .ignoresSafeArea()
-            
+            // Subtle Grid Overlay removed for performance
             // Content
             VStack(spacing: 20) {
                 // Glass Logo
@@ -100,18 +81,14 @@ struct SplashView: View {
         .onAppear {
             animateGradients.toggle()
             
-            withAnimation(.spring(response: 0.8, dampingFraction: 0.6).delay(0.2)) {
+            withAnimation(.spring(response: 0.8, dampingFraction: 0.5).delay(0.2)) {
                 logoScale = 1.0
                 logoOpacity = 1.0
             }
             
-            withAnimation(.easeOut(duration: 0.6).delay(0.5)) {
+            withAnimation(.easeOut(duration: 0.4).delay(0.4)) {
                 textOffset = 0
                 textOpacity = 1.0
-            }
-            
-            withAnimation(.linear(duration: 10.0).repeatForever(autoreverses: false)) {
-                logoRotation = 360.0
             }
         }
     }

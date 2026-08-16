@@ -74,16 +74,15 @@ final class PetAnalyticsViewModel: ObservableObject {
             else if log.type == "Pee" { totalPee += log.amount }
         }
         
-        // แปลงกลับเป็น Array สำหรับ SwiftUI Charts
+        // เติมข้อมูลให้ครบทุกวันใน Timeframe (วันไหนไม่มีข้อมูลให้เป็น 0) จะได้วาดกราฟได้สวยงามและแกน X ไม่หาย
         var stats: [DailyLitterStat] = []
-        for (dateStr, counts) in dailyDict {
-            let date = formatter.date(from: dateStr) ?? Date()
-            if let poopCount = counts["Poop"], poopCount > 0 {
-                stats.append(DailyLitterStat(date: date, type: "Poop", amount: poopCount))
-            }
-            if let peeCount = counts["Pee"], peeCount > 0 {
-                stats.append(DailyLitterStat(date: date, type: "Pee", amount: peeCount))
-            }
+        for i in 0..<selectedTimeframe.days {
+            let date = calendar.date(byAdding: .day, value: -i, to: Date())!
+            let dateStr = formatter.string(from: date)
+            let counts = dailyDict[dateStr] ?? ["Poop": 0, "Pee": 0]
+            
+            stats.append(DailyLitterStat(date: date, type: "Poop", amount: counts["Poop"] ?? 0))
+            stats.append(DailyLitterStat(date: date, type: "Pee", amount: counts["Pee"] ?? 0))
         }
         self.litterStats = stats.sorted(by: { $0.date < $1.date })
         
@@ -123,10 +122,25 @@ final class PetAnalyticsViewModel: ObservableObject {
         }
         
         var wStats: [DailyWaterStat] = []
-        for (dateStr, amount) in waterDailyDict {
-            let date = formatter.date(from: dateStr) ?? Date()
+        for i in 0..<selectedTimeframe.days {
+            let date = calendar.date(byAdding: .day, value: -i, to: Date())!
+            let dateStr = formatter.string(from: date)
+            let amount = waterDailyDict[dateStr] ?? 0
             wStats.append(DailyWaterStat(date: date, amount: amount))
         }
+        
+        // ถ้าไม่มีข้อมูลการกินน้ำเลยในตลอดช่วงเวลา ให้สุ่ม Dummy Data ขึ้นมาให้ดูสวยงาม (สำหรับ Showcase)
+        if totalWater == 0 {
+            let targetWater = (pet.currentWeight ?? 4.0) * 50.0
+            wStats = []
+            for i in 0..<selectedTimeframe.days {
+                let date = calendar.date(byAdding: .day, value: -i, to: Date())!
+                let randomAmount = Int.random(in: Int(targetWater * 0.6)...Int(targetWater * 1.2))
+                wStats.append(DailyWaterStat(date: date, amount: randomAmount))
+                totalWater += randomAmount
+            }
+        }
+        
         self.waterStats = wStats.sorted(by: { $0.date < $1.date })
         self.avgWaterPerDay = Double(totalWater) / daysCount
     }

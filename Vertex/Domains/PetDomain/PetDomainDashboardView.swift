@@ -164,6 +164,8 @@ struct WaterDashboardView: View {
     @State private var isSaving: Bool = false
     @State private var selectedDate = Date()
     @State private var lastUpdated: Date? = nil
+    @State private var showDeleteConfirmation: Bool = false
+    @State private var logToDelete: WaterLog? = nil
     
     var body: some View {
         ScrollView {
@@ -402,7 +404,10 @@ struct WaterDashboardView: View {
                                         .foregroundColor(.secondary)
                                 }
                                 Spacer()
-                                Button(action: { Task { await deleteLog(log) } }) {
+                                Button(action: { 
+                                    logToDelete = log
+                                    showDeleteConfirmation = true
+                                }) {
                                     Image(systemName: "trash")
                                         .foregroundColor(.red)
                                 }
@@ -424,6 +429,14 @@ struct WaterDashboardView: View {
         .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("Water Tracker")
         .navigationBarTitleDisplayMode(.inline)
+        .alert("ลบรายการ?", isPresented: $showDeleteConfirmation, presenting: logToDelete) { log in
+            Button("ลบทิ้ง", role: .destructive) {
+                Task { await deleteLog(log) }
+            }
+            Button("ยกเลิก", role: .cancel) { }
+        } message: { log in
+            Text("คุณแน่ใจหรือไม่ที่จะลบรายการป้อนน้ำ \(log.amount) ml นี้?")
+        }
         .onAppear {
             if selectedPet == nil {
                 selectedPet = petStore.activePet ?? petStore.allPets.first

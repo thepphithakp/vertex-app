@@ -106,7 +106,7 @@ struct VertexWidgetEntryView : View {
                 .frame(maxWidth: .infinity)
             }
         }
-        // No hardcoded padding here; WidgetKit handles safe areas automatically
+        .widgetURL(URL(string: "vertex://ev-parking"))
     }
 }
 

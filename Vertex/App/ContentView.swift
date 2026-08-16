@@ -83,6 +83,11 @@ struct ContentView: View {
         .task {
             await petStore.loadAllPets()
         }
+        .onOpenURL { url in
+            if url.scheme == "vertex" && url.host == "ev-parking" {
+                selectedTab = .ev
+            }
+        }
     }
 }
 

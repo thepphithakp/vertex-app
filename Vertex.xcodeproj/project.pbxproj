@@ -8,10 +8,41 @@
 
 /* Begin PBXBuildFile section */
 		A6FCA42CB0FFC2D995129B62 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = CEF27E8A9C9DABE067C59E3D /* GoogleSignIn */; };
+		A8304CED3031D612000A6866 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A8304CEC3031D612000A6866 /* WidgetKit.framework */; };
+		A8304CEF3031D612000A6866 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A8304CEE3031D612000A6866 /* SwiftUI.framework */; };
+		A8304CFE3031D614000A6866 /* VertexWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = A8304CEA3031D612000A6866 /* VertexWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A8304CFC3031D614000A6866 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A8304BB330262A25000A6866 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A8304CE93031D612000A6866;
+			remoteInfo = VertexWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A8304D033031D614000A6866 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				A8304CFE3031D614000A6866 /* VertexWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		A8304BBB30262A25000A6866 /* Vertex.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vertex.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A8304CEA3031D612000A6866 /* VertexWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = VertexWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		A8304CEC3031D612000A6866 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		A8304CEE3031D612000A6866 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		A8304D043031D793000A6866 /* VertexWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = VertexWidgetExtension.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -22,6 +53,13 @@
 			);
 			target = A8304BBA30262A25000A6866 /* Vertex */;
 		};
+		A8304D023031D614000A6866 /* Exceptions for "VertexWidget" folder in "VertexWidgetExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A8304CE93031D612000A6866 /* VertexWidgetExtension */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -31,6 +69,14 @@
 				A8304C5C302789A1000A6866 /* Exceptions for "Vertex" folder in "Vertex" target */,
 			);
 			path = Vertex;
+			sourceTree = "<group>";
+		};
+		A8304CF03031D612000A6866 /* VertexWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				A8304D023031D614000A6866 /* Exceptions for "VertexWidget" folder in "VertexWidgetExtension" target */,
+			);
+			path = VertexWidget;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -44,13 +90,25 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A8304CE73031D612000A6866 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A8304CEF3031D612000A6866 /* SwiftUI.framework in Frameworks */,
+				A8304CED3031D612000A6866 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		A8304BB230262A25000A6866 = {
 			isa = PBXGroup;
 			children = (
+				A8304D043031D793000A6866 /* VertexWidgetExtension.entitlements */,
 				A8304BBD30262A25000A6866 /* Vertex */,
+				A8304CF03031D612000A6866 /* VertexWidget */,
+				A8304CEB3031D612000A6866 /* Frameworks */,
 				A8304BBC30262A25000A6866 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -59,8 +117,18 @@
 			isa = PBXGroup;
 			children = (
 				A8304BBB30262A25000A6866 /* Vertex.app */,
+				A8304CEA3031D612000A6866 /* VertexWidgetExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A8304CEB3031D612000A6866 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				A8304CEC3031D612000A6866 /* WidgetKit.framework */,
+				A8304CEE3031D612000A6866 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -73,10 +141,12 @@
 				A8304BB730262A25000A6866 /* Sources */,
 				A8304BB830262A25000A6866 /* Frameworks */,
 				A8304BB930262A25000A6866 /* Resources */,
+				A8304D033031D614000A6866 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				A8304CFD3031D614000A6866 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				A8304BBD30262A25000A6866 /* Vertex */,
@@ -89,6 +159,28 @@
 			productReference = A8304BBB30262A25000A6866 /* Vertex.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A8304CE93031D612000A6866 /* VertexWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A8304CFF3031D614000A6866 /* Build configuration list for PBXNativeTarget "VertexWidgetExtension" */;
+			buildPhases = (
+				A8304CE63031D612000A6866 /* Sources */,
+				A8304CE73031D612000A6866 /* Frameworks */,
+				A8304CE83031D612000A6866 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A8304CF03031D612000A6866 /* VertexWidget */,
+			);
+			name = VertexWidgetExtension;
+			packageProductDependencies = (
+			);
+			productName = VertexWidgetExtension;
+			productReference = A8304CEA3031D612000A6866 /* VertexWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -100,6 +192,9 @@
 				LastUpgradeCheck = 2630;
 				TargetAttributes = {
 					A8304BBA30262A25000A6866 = {
+						CreatedOnToolsVersion = 26.3;
+					};
+					A8304CE93031D612000A6866 = {
 						CreatedOnToolsVersion = 26.3;
 					};
 				};
@@ -122,12 +217,20 @@
 			projectRoot = "";
 			targets = (
 				A8304BBA30262A25000A6866 /* Vertex */,
+				A8304CE93031D612000A6866 /* VertexWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		A8304BB930262A25000A6866 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A8304CE83031D612000A6866 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -144,7 +247,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A8304CE63031D612000A6866 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A8304CFD3031D614000A6866 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A8304CE93031D612000A6866 /* VertexWidgetExtension */;
+			targetProxy = A8304CFC3031D614000A6866 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A8304BC430262A27000A6866 /* Debug */ = {
@@ -271,6 +389,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Vertex/Vertex.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = XCX6PR9X3H;
@@ -304,6 +423,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Vertex/Vertex.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = XCX6PR9X3H;
@@ -332,6 +452,68 @@
 			};
 			name = Release;
 		};
+		A8304D003031D614000A6866 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = VertexWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XCX6PR9X3H;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = VertexWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = VertexWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vertex.Vertex8999.VertexWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A8304D013031D614000A6866 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = VertexWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XCX6PR9X3H;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = VertexWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = VertexWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vertex.Vertex8999.VertexWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -349,6 +531,15 @@
 			buildConfigurations = (
 				A8304BC730262A27000A6866 /* Debug */,
 				A8304BC830262A27000A6866 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A8304CFF3031D614000A6866 /* Build configuration list for PBXNativeTarget "VertexWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A8304D003031D614000A6866 /* Debug */,
+				A8304D013031D614000A6866 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

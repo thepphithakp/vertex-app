@@ -23,6 +23,12 @@ struct DailyLitterStat: Identifiable {
     let amount: Int
 }
 
+struct DailyWaterStat: Identifiable {
+    let id = UUID()
+    let date: Date
+    let amount: Int
+}
+
 @MainActor
 final class PetAnalyticsViewModel: ObservableObject {
     @Published var selectedTimeframe: AnalyticsTimeframe = .week
@@ -31,11 +37,13 @@ final class PetAnalyticsViewModel: ObservableObject {
     // Processed Data for Charts
     @Published var litterStats: [DailyLitterStat] = []
     @Published var weightLogs: [WeightLog] = []
+    @Published var waterStats: [DailyWaterStat] = []
     
     // Summary Metrics
     @Published var avgPoopPerDay: Double = 0.0
     @Published var avgPeePerDay: Double = 0.0
     @Published var weightChange: Double = 0.0
+    @Published var avgWaterPerDay: Double = 0.0
     
     func loadData() {
         guard let pet = selectedPet else {
@@ -102,13 +110,34 @@ final class PetAnalyticsViewModel: ObservableObject {
         if let first = self.weightLogs.first, let last = self.weightLogs.last {
             self.weightChange = last.weight - first.weight
         }
+        
+        // 3. กรองและจัดกลุ่มข้อมูล Water Logs
+        let filteredWater = pet.waterLogs.filter { $0.date >= startDate }
+        var waterDailyDict: [String: Int] = [:]
+        var totalWater = 0
+        
+        for log in filteredWater {
+            let dateString = formatter.string(from: log.date)
+            waterDailyDict[dateString, default: 0] += log.amount
+            totalWater += log.amount
+        }
+        
+        var wStats: [DailyWaterStat] = []
+        for (dateStr, amount) in waterDailyDict {
+            let date = formatter.date(from: dateStr) ?? Date()
+            wStats.append(DailyWaterStat(date: date, amount: amount))
+        }
+        self.waterStats = wStats.sorted(by: { $0.date < $1.date })
+        self.avgWaterPerDay = Double(totalWater) / daysCount
     }
     
     private func clearData() {
         litterStats = []
         weightLogs = []
+        waterStats = []
         avgPoopPerDay = 0
         avgPeePerDay = 0
         weightChange = 0
+        avgWaterPerDay = 0
     }
 }

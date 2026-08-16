@@ -37,7 +37,7 @@ struct PetAnalyticsDashboardView: View {
                 } else {
                     
                     // 2. Summary KPI Cards
-                    HStack(spacing: 12) {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                         AnalyticsKPICard(
                             title: "อึเฉลี่ย/วัน",
                             value: String(format: "%.1f", viewModel.avgPoopPerDay),
@@ -52,6 +52,14 @@ struct PetAnalyticsDashboardView: View {
                             unit: "ครั้ง",
                             icon: "drop.fill",
                             color: .orange
+                        )
+                        
+                        AnalyticsKPICard(
+                            title: "น้ำเฉลี่ย/วัน",
+                            value: String(format: "%.0f", viewModel.avgWaterPerDay),
+                            unit: "ml",
+                            icon: "drop.circle.fill",
+                            color: .cyan
                         )
                         
                         AnalyticsKPICard(
@@ -132,6 +140,36 @@ struct PetAnalyticsDashboardView: View {
                         .padding(.horizontal)
                     }
                     
+                    // 5. กราฟการกินน้ำ (Area/Bar Chart)
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Water Intake (ปริมาณการกินน้ำ)")
+                            .font(.headline)
+                            .padding(.horizontal)
+                        
+                        if viewModel.waterStats.isEmpty {
+                            Text("No water data for this period.")
+                                .foregroundColor(.secondary)
+                                .frame(height: 200)
+                                .frame(maxWidth: .infinity)
+                        } else {
+                            Chart {
+                                ForEach(viewModel.waterStats) { stat in
+                                    BarMark(
+                                        x: .value("Date", stat.date, unit: .day),
+                                        y: .value("Amount", stat.amount)
+                                    )
+                                    .foregroundStyle(Color.cyan.gradient)
+                                    .cornerRadius(4)
+                                }
+                            }
+                            .frame(height: 250)
+                            .padding()
+                            .background(Color(UIColor.secondarySystemGroupedBackground))
+                            .cornerRadius(16)
+                            .padding(.horizontal)
+                        }
+                    }
+                    
                     // AI / Smart Insights
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -168,14 +206,33 @@ struct PetAnalyticsDashboardView: View {
     
     private func generateInsight() -> String {
         let poop = viewModel.avgPoopPerDay
+        let water = viewModel.avgWaterPerDay
+        let targetWater = (viewModel.selectedPet?.currentWeight ?? 4.0) * 50.0 // 50ml per kg
+        
+        var insights: [String] = []
+        
         if poop < 0.5 && poop > 0 {
-            return "น้องอาจจะมีอาการท้องผูก เนื่องจากจำนวนอึเฉลี่ยน้อยกว่า 1 ก้อนต่อวัน แนะนำให้กระตุ้นการกินน้ำ"
+            insights.append("น้องอาจจะมีอาการท้องผูก เนื่องจากจำนวนอึเฉลี่ยน้อยกว่า 1 ก้อนต่อวัน แนะนำให้สังเกตและกระตุ้นการกินน้ำ")
         } else if poop > 3 {
-            return "น้องขับถ่ายบ่อยกว่าปกติ สังเกตลักษณะอึว่าเหลวหรือไม่ หากเหลวควรพาไปพบแพทย์"
-        } else if poop == 0 {
-            return "ยังไม่มีข้อมูลเพียงพอสำหรับประมวลผล ลองบันทึกข้อมูลทุกวันดูนะ!"
+            insights.append("น้องขับถ่ายบ่อยกว่าปกติ สังเกตลักษณะอึว่าเหลวหรือไม่ หากเหลวควรพาไปพบแพทย์")
+        } else if poop > 0 {
+            insights.append("สุขภาพการขับถ่ายอยู่ในเกณฑ์ดีเยี่ยม! 🌟")
+        }
+        
+        if water > 0 {
+            if water < (targetWater * 0.7) {
+                insights.append("น้องกินน้ำน้อยกว่าเกณฑ์ (ควรได้ประมาณ \(Int(targetWater)) ml/วัน) เสี่ยงต่อโรคไตและนิ่ว แนะนำให้ตั้งน้ำหลายๆ จุด 💧")
+            } else if water <= (targetWater * 1.3) {
+                insights.append("ปริมาณการกินน้ำเฉลี่ยเหมาะสมดีมาก ช่วยให้ระบบปัสสาวะแข็งแรง 🚰")
+            } else {
+                insights.append("น้องกินน้ำเยอะกว่าปกติ สังเกตว่าฉี่บ่อยผิดปกติหรือไม่ อาจเป็นสัญญาณเตือนโรคไตหรือเบาหวาน 🚨")
+            }
+        }
+        
+        if insights.isEmpty {
+            return "ยังไม่มีข้อมูลเพียงพอสำหรับประมวลผล ลองบันทึกข้อมูลและคอยสังเกตพฤติกรรมน้องต่อไปนะ!"
         } else {
-            return "สุขภาพการขับถ่ายอยู่ในเกณฑ์ดีเยี่ยม! 🌟 น้ำหนักของน้องมีแนวโน้มคงที่ แนะนำให้รักษาระดับการกินอาหารในปริมาณปัจจุบัน"
+            return insights.joined(separator: "\n\n")
         }
     }
 }

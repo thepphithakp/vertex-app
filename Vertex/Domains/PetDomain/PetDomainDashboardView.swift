@@ -163,6 +163,7 @@ struct WaterDashboardView: View {
     @State private var currentIntake: Int = 0
     @State private var isSaving: Bool = false
     @State private var selectedDate = Date()
+    @State private var lastUpdated: Date? = nil
     
     var body: some View {
         ScrollView {
@@ -188,16 +189,24 @@ struct WaterDashboardView: View {
                 
                 if !petStore.allPets.isEmpty {
                     // Header
-                    HStack {
-                        Text("Daily Water Intake")
-                            .font(.title2)
-                            .bold()
-                        Spacer()
-                        DatePicker("", selection: $selectedDate, displayedComponents: .date)
-                            .labelsHidden()
-                            .onChange(of: selectedDate) {
-                                Task { await loadLogs() }
-                            }
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Daily Water Intake")
+                                .font(.title2)
+                                .bold()
+                            Spacer()
+                            DatePicker("", selection: $selectedDate, displayedComponents: .date)
+                                .labelsHidden()
+                                .onChange(of: selectedDate) {
+                                    Task { await loadLogs() }
+                                }
+                        }
+                        
+                        if let lastUpdated = lastUpdated {
+                            Text("Last updated: \(lastUpdated.formatted(date: .omitted, time: .standard))")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
                     }
                     .padding(.horizontal)
                 
@@ -428,6 +437,7 @@ struct WaterDashboardView: View {
         let repo = SyncWaterRepository(context: context)
         do {
             logs = try await repo.fetchLogs(for: pet, on: selectedDate)
+            lastUpdated = Date()
         } catch {
             print("Failed to load water logs: \(error)")
         }

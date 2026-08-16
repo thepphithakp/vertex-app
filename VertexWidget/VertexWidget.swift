@@ -114,8 +114,14 @@ struct VertexWidget: Widget {
 
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: Provider()) { entry in
-            VertexWidgetEntryView(entry: entry)
-                .containerBackground(Color.black, for: .widget) // Required for iOS 17+
+            if #available(iOS 17.0, *) {
+                VertexWidgetEntryView(entry: entry)
+                    .containerBackground(Color.black, for: .widget) // Required for iOS 17+
+            } else {
+                VertexWidgetEntryView(entry: entry)
+                    .padding()
+                    .background()
+            }
         }
         .configurationDisplayName("EV Parking Tracker")
         .description("Keep your parking location on your home screen.")

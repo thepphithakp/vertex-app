@@ -1,4 +1,5 @@
 import SwiftUI
+import WidgetKit
 
 struct EVDomainDashboardView: View {
     enum LocationType: String, CaseIterable {
@@ -6,11 +7,11 @@ struct EVDomainDashboardView: View {
         case mall = "Mall / Office"
     }
     
-    @AppStorage("parkedFloor") private var parkedFloor: String = ""
-    @AppStorage("parkedZone") private var parkedZone: String = ""
-    @AppStorage("parkedDate") private var parkedDateDouble: Double = 0
-    @AppStorage("parkedNotes") private var parkedNotes: String = ""
-    @AppStorage("lastLocationType") private var lastLocationTypeRaw: String = LocationType.condo.rawValue
+    @AppStorage("parkedFloor", store: SharedUserDefaults.shared) private var parkedFloor: String = ""
+    @AppStorage("parkedZone", store: SharedUserDefaults.shared) private var parkedZone: String = ""
+    @AppStorage("parkedDate", store: SharedUserDefaults.shared) private var parkedDateDouble: Double = 0
+    @AppStorage("parkedNotes", store: SharedUserDefaults.shared) private var parkedNotes: String = ""
+    @AppStorage("lastLocationType", store: SharedUserDefaults.shared) private var lastLocationTypeRaw: String = LocationType.condo.rawValue
     
     @State private var isEditing: Bool = false
     
@@ -267,6 +268,8 @@ struct EVDomainDashboardView: View {
         parkedDateDouble = Date().timeIntervalSince1970
         lastLocationTypeRaw = editLocationType.rawValue
         
+        WidgetCenter.shared.reloadAllTimelines()
+        
         withAnimation(.spring()) {
             isEditing = false
         }
@@ -283,6 +286,7 @@ struct EVDomainDashboardView: View {
             parkedDateDouble = 0
             isEditing = false
         }
+        WidgetCenter.shared.reloadAllTimelines()
     }
 }
 

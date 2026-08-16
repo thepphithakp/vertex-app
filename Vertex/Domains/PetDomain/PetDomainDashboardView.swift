@@ -67,6 +67,19 @@ struct PetDomainDashboardView: View {
                 }
                 .padding(.horizontal)
                 
+                if petStore.isLoading {
+                    VStack(spacing: 8) {
+                        ProgressView(value: petStore.fetchProgress, total: 1.0)
+                            .progressViewStyle(.linear)
+                            .tint(.blue)
+                        Text("Fetching your cats... \(Int(petStore.fetchProgress * 100))%")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal)
+                    .padding(.vertical, 4)
+                }
+                
                 // เมนูหลัก (ใช้ NavigationLink ธรรมดา ไม่มีการหน่วงเวลาใดๆ ทั้งสิ้น)
                 LazyVGrid(columns: columns, spacing: 16) {
                     // 1. Pet Care

@@ -8,6 +8,8 @@ import Combine
 final class PetStore: ObservableObject {
     @Published var activePet: Pet? = nil
     @Published var allPets: [Pet] = []
+    @Published var isLoading: Bool = false
+    @Published var fetchProgress: Double = 0.0
     
     func selectPet(_ pet: Pet) {
         self.activePet = pet
@@ -39,13 +41,34 @@ final class PetStore: ObservableObject {
             return
         }
         
+        self.isLoading = true
+        self.fetchProgress = 0.0
+        
+        let progressTask = Task {
+            for i in 1...90 {
+                try? await Task.sleep(nanoseconds: 10_000_000) // 10ms per step
+                if Task.isCancelled { break }
+                await MainActor.run { self.fetchProgress = Double(i) / 100.0 }
+            }
+        }
+        
         do {
             let repository = RemotePetRepository()
             let fetchedPets = try await repository.fetchPets()
+            
+            progressTask.cancel()
+            self.fetchProgress = 1.0
+            try? await Task.sleep(nanoseconds: 200_000_000) // slight delay to show 100%
+            
             self.updatePets(fetchedPets)
             self.lastFetchTime = Date()
         } catch {
+            progressTask.cancel()
             print("Failed to load pets globally: \(error)")
+        }
+        
+        withAnimation {
+            self.isLoading = false
         }
     }
 }

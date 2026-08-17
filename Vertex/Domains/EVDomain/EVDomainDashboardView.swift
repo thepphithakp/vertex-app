@@ -1,5 +1,6 @@
 import SwiftUI
 import WidgetKit
+import ActivityKit
 
 struct EVDomainDashboardView: View {
     enum LocationType: String, CaseIterable {
@@ -309,6 +310,7 @@ struct EVDomainDashboardView: View {
             NotificationManager.shared.cancelDoubleParkingReminder()
         }
         
+        updateLiveActivity()
         WidgetCenter.shared.reloadAllTimelines()
         
         withAnimation(.spring()) {
@@ -327,9 +329,37 @@ struct EVDomainDashboardView: View {
             parkedZone = ""
             parkedNotes = ""
             parkedDateDouble = 0
+            isDoubleParked = false
             isEditing = false
         }
+        updateLiveActivity()
         WidgetCenter.shared.reloadAllTimelines()
+    }
+    
+    private func updateLiveActivity() {
+        Task {
+            if isParked {
+                let state = ParkingAttributes.ContentState(isDoubleParked: isDoubleParked, floor: parkedFloor, zone: parkedZone)
+                let content = ActivityContent(state: state, staleDate: nil)
+                
+                if let currentActivity = Activity<ParkingAttributes>.activities.first {
+                    await currentActivity.update(content)
+                } else if ActivityAuthorizationInfo().areActivitiesEnabled {
+                    let attributes = ParkingAttributes()
+                    do {
+                        _ = try Activity.request(attributes: attributes, content: content)
+                    } catch {
+                        print("Error starting Live Activity: \(error)")
+                    }
+                }
+            } else {
+                for activity in Activity<ParkingAttributes>.activities {
+                    let state = ParkingAttributes.ContentState(isDoubleParked: false, floor: "", zone: "")
+                    let content = ActivityContent(state: state, staleDate: nil)
+                    await activity.end(content, dismissalPolicy: .immediate)
+                }
+            }
+        }
     }
 }
 

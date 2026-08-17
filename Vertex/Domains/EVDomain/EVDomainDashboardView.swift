@@ -12,12 +12,14 @@ struct EVDomainDashboardView: View {
     @AppStorage("parkedDate", store: SharedUserDefaults.shared) private var parkedDateDouble: Double = 0
     @AppStorage("parkedNotes", store: SharedUserDefaults.shared) private var parkedNotes: String = ""
     @AppStorage("lastLocationType", store: SharedUserDefaults.shared) private var lastLocationTypeRaw: String = LocationType.condo.rawValue
+    @AppStorage("isDoubleParked", store: SharedUserDefaults.shared) private var isDoubleParked: Bool = false
     
     @State private var isEditing: Bool = false
     
     @State private var inputFloor: String = "1"
     @State private var inputZone: String = ""
     @State private var inputNotes: String = ""
+    @State private var inputIsDoubleParked: Bool = false
     @State private var editLocationType: LocationType = .condo
     
     // Swipe to clear state
@@ -99,6 +101,14 @@ struct EVDomainDashboardView: View {
                                     .textFieldStyle(RoundedBorderTextFieldStyle())
                             }
                             
+                            if editLocationType == .condo {
+                                Toggle(isOn: $inputIsDoubleParked) {
+                                    Text("Double Parked (จอดซ้อนคัน)")
+                                        .foregroundColor(.orange)
+                                }
+                                .padding(.vertical, 4)
+                            }
+                            
                             Button(action: saveParking) {
                                 Text("Save Location")
                                     .font(.headline)
@@ -150,6 +160,26 @@ struct EVDomainDashboardView: View {
                                 .padding(10)
                                 .background(Color.black.opacity(0.2))
                                 .cornerRadius(8)
+                            }
+                            
+                            if isDoubleParked && lastLocationTypeRaw == LocationType.condo.rawValue {
+                                HStack(alignment: .top) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(.yellow)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("⚠️ จอดซ้อนคัน")
+                                            .font(.headline)
+                                            .foregroundColor(.yellow)
+                                        Text("กรุณาเลื่อนรถก่อนเวลา 13:00 น. เพื่อหลีกเลี่ยงค่าปรับ 1,000 บาท")
+                                            .font(.caption)
+                                            .foregroundColor(.white)
+                                    }
+                                    Spacer()
+                                }
+                                .padding()
+                                .background(Color.red.opacity(0.8))
+                                .cornerRadius(12)
+                                .shadow(color: .red.opacity(0.5), radius: 5, y: 3)
                             }
                             
                             if let date = parkedDate {
@@ -242,6 +272,7 @@ struct EVDomainDashboardView: View {
         inputFloor = parkedFloor
         inputZone = parkedZone
         inputNotes = parkedNotes
+        inputIsDoubleParked = isDoubleParked
         
         if let type = LocationType(rawValue: lastLocationTypeRaw) {
             editLocationType = type
@@ -267,6 +298,7 @@ struct EVDomainDashboardView: View {
         parkedNotes = inputNotes
         parkedDateDouble = Date().timeIntervalSince1970
         lastLocationTypeRaw = editLocationType.rawValue
+        isDoubleParked = editLocationType == .condo ? inputIsDoubleParked : false
         
         WidgetCenter.shared.reloadAllTimelines()
         

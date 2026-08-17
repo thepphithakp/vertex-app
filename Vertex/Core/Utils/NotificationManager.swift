@@ -41,29 +41,52 @@ final class NotificationManager {
     }
     
     func scheduleDoubleParkingReminder() {
-        let identifier = "doubleParkingReminder"
+        // Schedule multiple reminders
+        let reminderTimes = [
+            (hour: 9, minute: 0),
+            (hour: 10, minute: 0),
+            (hour: 11, minute: 0),
+            (hour: 12, minute: 0),
+            (hour: 12, minute: 45) // Final warning
+        ]
         
-        let content = UNMutableNotificationContent()
-        content.title = "⚠️ แจ้งเตือนจอดซ้อนคัน!"
-        content.body = "ใกล้ถึงเวลา 13:00 น. แล้ว! กรุณาเลื่อนรถเพื่อหลีกเลี่ยงค่าปรับ 1,000 บาท"
-        content.sound = .default
-        
-        // เตือนเวลา 12:45 น. (15 นาทีก่อน 13:00 น.)
-        var components = DateComponents()
-        components.hour = 12
-        components.minute = 45
-        
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-        
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Failed to schedule double parking notification: \(error)")
+        for time in reminderTimes {
+            let identifier = "doubleParkingReminder_\(time.hour)_\(time.minute)"
+            
+            let content = UNMutableNotificationContent()
+            content.title = "⚠️ แจ้งเตือนจอดซ้อนคัน!"
+            
+            if time.hour == 12 && time.minute == 45 {
+                content.body = "เหลือเวลาอีก 15 นาทีถึง 13:00 น.! รีบไปเลื่อนรถด่วนเพื่อเลี่ยงค่าปรับ 1,000 บาท"
+            } else {
+                content.body = "คุณจอดรถซ้อนคันอยู่ อย่าลืมไปเลื่อนรถเข้าช่องจอดก่อน 13:00 น. นะครับ (ค่าปรับ 1,000 บาท)"
+            }
+            
+            content.sound = .default
+            
+            var components = DateComponents()
+            components.hour = time.hour
+            components.minute = time.minute
+            
+            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+            
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error = error {
+                    print("Failed to schedule double parking notification for \(time.hour):\(time.minute): \(error)")
+                }
             }
         }
     }
     
     func cancelDoubleParkingReminder() {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["doubleParkingReminder"])
+        let identifiers = [
+            "doubleParkingReminder_9_0",
+            "doubleParkingReminder_10_0",
+            "doubleParkingReminder_11_0",
+            "doubleParkingReminder_12_0",
+            "doubleParkingReminder_12_45"
+        ]
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
     }
 }

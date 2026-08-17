@@ -6,7 +6,7 @@ struct Provider: TimelineProvider {
     let sharedDefaults = UserDefaults(suiteName: "group.com.vertex.Vertex8999") ?? .standard
     
     func placeholder(in context: Context) -> ParkingEntry {
-        ParkingEntry(date: Date(), floor: "3", zone: "F4", isParked: true)
+        ParkingEntry(date: Date(), floor: "3", zone: "F4", isParked: true, isDoubleParked: false)
     }
 
     func getSnapshot(in context: Context, completion: @escaping (ParkingEntry) -> ()) {
@@ -20,9 +20,10 @@ struct Provider: TimelineProvider {
     private func currentParkingEntry() -> ParkingEntry {
         let floor = sharedDefaults.string(forKey: "parkedFloor") ?? ""
         let zone = sharedDefaults.string(forKey: "parkedZone") ?? ""
+        let isDoubleParked = sharedDefaults.bool(forKey: "isDoubleParked")
         let isParked = !floor.isEmpty || !zone.isEmpty
         
-        return ParkingEntry(date: Date(), floor: floor, zone: zone, isParked: isParked)
+        return ParkingEntry(date: Date(), floor: floor, zone: zone, isParked: isParked, isDoubleParked: isDoubleParked)
     }
 }
 
@@ -31,6 +32,7 @@ struct ParkingEntry: TimelineEntry {
     let floor: String
     let zone: String
     let isParked: Bool
+    let isDoubleParked: Bool
 }
 
 struct VertexWidgetEntryView : View {
@@ -42,14 +44,14 @@ struct VertexWidgetEntryView : View {
             if entry.isParked {
                 // Header
                 HStack(alignment: .center) {
-                    Image(systemName: "car.circle.fill")
+                    Image(systemName: entry.isDoubleParked ? "exclamationmark.triangle.fill" : "car.circle.fill")
                         .font(.title2)
-                        .foregroundColor(.white)
+                        .foregroundColor(entry.isDoubleParked ? .yellow : .white)
                         .symbolRenderingMode(.hierarchical)
                     
-                    Text("PARKED")
+                    Text(entry.isDoubleParked ? (family == .systemSmall ? "DOUBLE" : "DOUBLE PARKED") : "PARKED")
                         .font(.system(size: 14, weight: .black, design: .rounded))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(entry.isDoubleParked ? .yellow : .white.opacity(0.9))
                         .tracking(1.5)
                     Spacer()
                 }
@@ -120,11 +122,19 @@ struct VertexWidget: Widget {
                 VertexWidgetEntryView(entry: entry)
                     .containerBackground(for: .widget) {
                         if entry.isParked {
-                            LinearGradient(
-                                colors: [Color(hex: "4facfe"), Color(hex: "00f2fe")],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
+                            if entry.isDoubleParked {
+                                LinearGradient(
+                                    colors: [Color.red.opacity(0.8), Color.orange.opacity(0.8)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            } else {
+                                LinearGradient(
+                                    colors: [Color(hex: "4facfe"), Color(hex: "00f2fe")],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            }
                         } else {
                             Color(UIColor.systemBackground)
                         }
@@ -134,7 +144,7 @@ struct VertexWidget: Widget {
                     .padding()
                     .background(
                         entry.isParked ? 
-                        LinearGradient(colors: [Color.blue, Color.cyan], startPoint: .topLeading, endPoint: .bottomTrailing) :
+                        (entry.isDoubleParked ? LinearGradient(colors: [Color.red, Color.orange], startPoint: .topLeading, endPoint: .bottomTrailing) : LinearGradient(colors: [Color.blue, Color.cyan], startPoint: .topLeading, endPoint: .bottomTrailing)) :
                         LinearGradient(colors: [Color(UIColor.systemBackground)], startPoint: .top, endPoint: .bottom)
                     )
             }

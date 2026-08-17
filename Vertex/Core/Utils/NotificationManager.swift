@@ -39,4 +39,31 @@ final class NotificationManager {
     func cancelReminder(for appointmentId: UUID) {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [appointmentId.uuidString])
     }
+    
+    func scheduleDoubleParkingReminder() {
+        let identifier = "doubleParkingReminder"
+        
+        let content = UNMutableNotificationContent()
+        content.title = "⚠️ แจ้งเตือนจอดซ้อนคัน!"
+        content.body = "ใกล้ถึงเวลา 13:00 น. แล้ว! กรุณาเลื่อนรถเพื่อหลีกเลี่ยงค่าปรับ 1,000 บาท"
+        content.sound = .default
+        
+        // เตือนเวลา 12:45 น. (15 นาทีก่อน 13:00 น.)
+        var components = DateComponents()
+        components.hour = 12
+        components.minute = 45
+        
+        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+        
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Failed to schedule double parking notification: \(error)")
+            }
+        }
+    }
+    
+    func cancelDoubleParkingReminder() {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["doubleParkingReminder"])
+    }
 }

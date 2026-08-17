@@ -300,6 +300,15 @@ struct EVDomainDashboardView: View {
         lastLocationTypeRaw = editLocationType.rawValue
         isDoubleParked = editLocationType == .condo ? inputIsDoubleParked : false
         
+        if isDoubleParked {
+            Task {
+                _ = try? await NotificationManager.shared.requestPermission()
+                NotificationManager.shared.scheduleDoubleParkingReminder()
+            }
+        } else {
+            NotificationManager.shared.cancelDoubleParkingReminder()
+        }
+        
         WidgetCenter.shared.reloadAllTimelines()
         
         withAnimation(.spring()) {
@@ -310,6 +319,8 @@ struct EVDomainDashboardView: View {
     private func clearParking() {
         let generator = UINotificationFeedbackGenerator()
         generator.notificationOccurred(.success)
+        
+        NotificationManager.shared.cancelDoubleParkingReminder()
         
         withAnimation(.spring()) {
             parkedFloor = ""

@@ -98,6 +98,76 @@ class NetworkManager {
     }
 }
 
+// MARK: - Binary responses (avatar)
+
+extension NetworkManager {
+
+    /// ผลลัพธ์ของการขอข้อมูลดิบพร้อมข้อมูลสำหรับ cache
+    struct RawResponse {
+        /// nil เมื่อเซิร์ฟเวอร์ตอบ 304 แปลว่าของเดิมที่ cache ไว้ยังใช้ได้
+        let data: Data?
+        let etag: String?
+        var notModified: Bool { data == nil }
+    }
+
+    /// ขอข้อมูลดิบ (ไม่ decode JSON) ใช้กับรูปที่เป็น binary
+    ///
+    /// ส่ง `If-None-Match` ไปด้วยถ้ามี etag เดิม เซิร์ฟเวอร์จะตอบ 304
+    /// ที่ไม่มี body เลยเมื่อรูปไม่เปลี่ยน — ประหยัดกว่าโหลดรูปใหม่ทุกครั้งมาก
+    ///
+    /// 404 ไม่ถือเป็น error ที่ต้องเด้ง dialog เพราะแปลว่าสัตว์เลี้ยงตัวนั้นไม่มีรูป
+    /// ซึ่งเป็นเรื่องปกติ — คืน RawResponse ที่ data เป็น nil และ etag เป็น nil แทน
+    func requestRawData(
+        endpoint: String,
+        ifNoneMatch etag: String? = nil
+    ) async throws -> RawResponse {
+        guard let url = URL(string: "\(AppConfig.shared.baseURL)\(endpoint)") else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        for (key, value) in defaultHeaders {
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+        // ไม่ใช่ JSON — ขอเป็นอะไรก็ได้
+        request.setValue("*/*", forHTTPHeaderField: "Accept")
+
+        if let token = UserDefaults.standard.string(forKey: "jwt_token") {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        request.setValue(UUID().uuidString, forHTTPHeaderField: "X-Request-Id")
+
+        if let etag, !etag.isEmpty {
+            request.setValue(etag, forHTTPHeaderField: "If-None-Match")
+        }
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+
+        let newETag = httpResponse.value(forHTTPHeaderField: "ETag")
+
+        switch httpResponse.statusCode {
+        case 304:
+            return RawResponse(data: nil, etag: etag)
+        case 404:
+            // ไม่มีรูป ไม่ใช่ความผิดพลาด
+            return RawResponse(data: nil, etag: nil)
+        case 200...299:
+            return RawResponse(data: data, etag: newETag)
+        default:
+            let apiError = APIError(
+                message: "โหลดรูปไม่สำเร็จ (status \(httpResponse.statusCode))",
+                requestId: request.value(forHTTPHeaderField: "X-Request-Id")
+            )
+            throw apiError
+        }
+    }
+}
+
 // Helper for endpoints that return 204 No Content
 struct EmptyResponse: Decodable {}
 

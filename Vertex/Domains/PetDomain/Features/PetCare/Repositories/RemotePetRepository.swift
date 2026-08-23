@@ -7,12 +7,63 @@ class RemotePetRepository: PetRepository {
     
     func fetchPets() async throws -> [Pet] {
         let dtos: [PetDTO] = try await NetworkManager.shared.request(endpoint: "/pets")
-        return dtos.map { $0.toDomain() }
+        let pets = dtos.map { $0.toDomain() }
+        await Self.attachAvatars(to: pets, from: dtos)
+        return pets
     }
-    
+
     func getPet(by id: UUID) async throws -> Pet? {
         let dto: PetDTO = try await NetworkManager.shared.request(endpoint: "/pets/\(id.uuidString)")
-        return dto.toDomain()
+        let pet = dto.toDomain()
+        await Self.attachAvatars(to: [pet], from: [dto])
+        return pet
+    }
+
+    /// เติม `avatarData` ให้ครบ ไม่ว่าเซิร์ฟเวอร์จะส่งรูปมากับรายการหรือไม่
+    ///
+    /// เซิร์ฟเวอร์กำลังทยอยเลิกส่ง `avatarData` ไปกับ `GET /pets` เพราะรูปรวม
+    /// หลายเมกะไบต์ทำให้หน้ารายการช้ามาก แล้วให้ไปดึงทีละตัวที่
+    /// `GET /pets/{id}/avatar` ซึ่ง cache ได้ด้วย ETag แทน
+    ///
+    /// รองรับทั้งสองแบบพร้อมกัน เพื่อให้แอปเวอร์ชันนี้ใช้ได้กับเซิร์ฟเวอร์
+    /// ทั้งก่อนและหลังปิดสวิตช์ ไม่ต้องปล่อยแอปให้ตรงจังหวะกัน
+    ///
+    /// จอที่แสดงรูปยังอ่านจาก `pet.avatarData` เหมือนเดิม ไม่ต้องแก้อะไร
+    /// `Pet` เป็น `@Model` class จึงไม่ต้องรับเป็น inout — แก้ผ่าน reference ได้เลย
+    private static func attachAvatars(to pets: [Pet], from dtos: [PetDTO]) async {
+        let store = PetAvatarStore.shared
+
+        // เซิร์ฟเวอร์ยังส่งรูปมา — เก็บลง cache ไว้ใช้รอบหน้า
+        // ใช้ storeIfAbsent เพื่อไม่ให้เขียนดิสก์ซ้ำทุกครั้งที่โหลดรายการ
+        for index in pets.indices {
+            if let data = dtos[index].avatarData {
+                await store.storeIfAbsent(data, for: pets[index].id)
+            }
+        }
+
+        // ตัวที่ไม่ได้รูปมาแต่เซิร์ฟเวอร์บอกว่ามี → ไปดึงมา
+        var needsAvatar: [Int] = []
+        for index in pets.indices where dtos[index].avatarData == nil && dtos[index].hasAvatar == true {
+            needsAvatar.append(index)
+        }
+
+        guard !needsAvatar.isEmpty else { return }
+
+        // ดึงพร้อมกันเพื่อไม่ให้หน้ารายการรอเป็นทอดๆ
+        // ครั้งแรกโหลดจริง ครั้งต่อไปได้ 304 ซึ่งแทบไม่มีข้อมูล
+        await withTaskGroup(of: (Int, Data?).self) { group in
+            for index in needsAvatar {
+                let petId = pets[index].id
+                group.addTask {
+                    // รูปโหลดไม่ได้ไม่ควรทำให้ทั้งหน้าล้ม — แสดง placeholder แทน
+                    let data = try? await store.avatar(for: petId)
+                    return (index, data)
+                }
+            }
+            for await (index, data) in group where data != nil {
+                pets[index].avatarData = data
+            }
+        }
     }
     
     func savePet(_ pet: Pet) async throws {
@@ -41,6 +92,13 @@ class RemotePetRepository: PetRepository {
             method: "PUT",
             body: data
         )
+
+        // อัปเดต cache ให้ตรงกับรูปใหม่ทันที ไม่ต้องรอรอบ fetch ถัดไป
+        if let avatar = pet.avatarData {
+            await PetAvatarStore.shared.store(avatar, for: pet.id)
+        } else {
+            await PetAvatarStore.shared.remove(for: pet.id)
+        }
     }
     
     func deletePet(_ pet: Pet) async throws {
@@ -48,6 +106,8 @@ class RemotePetRepository: PetRepository {
             endpoint: "/pets/\(pet.id.uuidString)",
             method: "DELETE"
         )
+        // ลบรูปที่ cache ไว้ด้วย ไม่งั้นค้างกินพื้นที่ไปเรื่อยๆ
+        await PetAvatarStore.shared.remove(for: pet.id)
     }
     
     // MARK: - Caregiver Operations
@@ -95,8 +155,12 @@ fileprivate struct PetDTO: Codable {
     let currentWeight: Double?
     let microchipId: String?
     let isSpayedNeutered: Bool
+
+    /// เซิร์ฟเวอร์ส่งมาเฉพาะตอนที่ไม่ได้แนบรูปมาด้วย (โหมดใหม่)
+    /// optional เพื่อให้ decode ได้ทั้งกับเซิร์ฟเวอร์เก่าและใหม่
     let avatarData: Data?
-    
+    let hasAvatar: Bool?
+
     func toDomain() -> Pet {
         return Pet(
             id: UUID(uuidString: id) ?? UUID(),
@@ -127,6 +191,8 @@ fileprivate struct PetDTO: Codable {
         self.microchipId = pet.microchipId
         self.isSpayedNeutered = pet.isSpayedNeutered
         self.avatarData = pet.avatarData
+        // ฝั่งเซิร์ฟเวอร์ไม่ได้อ่านค่านี้ตอนสร้าง/แก้ไข ใส่ไว้ให้ครบรูปแบบเท่านั้น
+        self.hasAvatar = pet.avatarData != nil
     }
 }
 

@@ -115,5 +115,9 @@ class AuthService: ObservableObject {
     func logout() {
         self.currentToken = nil
         self.currentUser = nil
+
+        // ล้างรูปสัตว์เลี้ยงที่ cache ไว้ในเครื่อง
+        // ไม่งั้นผู้ใช้คนถัดไปที่ login บนเครื่องเดียวกันอาจเห็นรูปของคนก่อน
+        Task { await PetAvatarStore.shared.clear() }
     }
 }

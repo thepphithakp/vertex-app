@@ -149,9 +149,7 @@ struct CatProfileDetailView: View {
             }
             .padding(.top)
         }
-        .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 90)
-        }
+        .compactsTabBarOnScroll()
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

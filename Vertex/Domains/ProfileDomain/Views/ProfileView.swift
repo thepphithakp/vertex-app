@@ -174,10 +174,10 @@ struct ProfileView: View {
                     .padding(.horizontal)
                     .padding(.top, 10)
                     
-                    Spacer().frame(height: 120) // Leave space for FloatingTabBar
                 }
                 .padding(.top, 20)
             }
+            .compactsTabBarOnScroll()
         }
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)

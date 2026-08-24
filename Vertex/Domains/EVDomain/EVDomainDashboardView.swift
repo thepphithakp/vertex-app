@@ -259,9 +259,7 @@ struct EVDomainDashboardView: View {
             }
             .padding(.top)
         }
-        .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 100)
-        }
+        .compactsTabBarOnScroll()
         .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
     }
     

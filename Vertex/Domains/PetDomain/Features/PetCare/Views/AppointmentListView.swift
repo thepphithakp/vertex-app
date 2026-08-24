@@ -115,12 +115,10 @@ struct AppointmentListView: View {
                         }
                     }
                 }
+                .compactsTabBarOnScroll()
                 .listStyle(.plain)
                 .animation(.bouncy, value: viewModel.appointments)
             }
-        }
-        .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 90)
         }
         .navigationTitle("Appointments")
         .toolbar {

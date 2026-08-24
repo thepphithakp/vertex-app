@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Combine
 
 // กำหนดเมนูหลักของแอป
 enum AppTab: String, CaseIterable {
@@ -8,7 +9,7 @@ enum AppTab: String, CaseIterable {
     case finance = "chart.pie.fill"
     case ev = "car.fill"
     case profile = "person.fill"
-    
+
     var title: String {
         switch self {
         case .home: return "Home"
@@ -20,65 +21,108 @@ enum AppTab: String, CaseIterable {
     }
 }
 
+// สถานะการหดของ tab bar — แชร์ให้ทุกหน้าที่ scroll ได้สั่งหด/ขยายผ่าน
+// compactsTabBarOnScroll() โดยไม่ต้องส่ง binding ทะลุหลายชั้น
+@MainActor
+final class TabBarChrome: ObservableObject {
+    static let shared = TabBarChrome()
+
+    @Published private(set) var isCompact = false
+
+    // กันการสั่น: ต้องเลื่อนเกิน threshold ถึงจะสลับสถานะ
+    private let threshold: CGFloat = 6
+
+    func scrollChanged(from oldOffset: CGFloat, to newOffset: CGFloat) {
+        // อยู่ใกล้หัว content = ขยายกลับเสมอ (รวม bounce ด้านบน)
+        if newOffset <= 0 {
+            set(false)
+            return
+        }
+        let delta = newOffset - oldOffset
+        if delta > threshold {
+            set(true)
+        } else if delta < -threshold {
+            set(false)
+        }
+    }
+
+    func reset() { set(false) }
+
+    private func set(_ compact: Bool) {
+        guard isCompact != compact else { return }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            isCompact = compact
+        }
+    }
+}
+
+extension View {
+    // ติดที่ ScrollView/List เพื่อให้ tab bar หดตอนเลื่อนลงและขยายตอนเลื่อนขึ้น
+    func compactsTabBarOnScroll() -> some View {
+        onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.contentOffset.y + geometry.contentInsets.top
+        } action: { oldValue, newValue in
+            TabBarChrome.shared.scrollChanged(from: oldValue, to: newValue)
+        }
+    }
+}
+
 struct ContentView: View {
     @EnvironmentObject private var appStore: AppStore
     @EnvironmentObject private var petStore: PetStore
     @State private var selectedTab: AppTab = .pet
-    
-    // ซ่อน TabBar ดั้งเดิมตอนที่ถูกดันไปหน้าลึกๆ
-    @State private var isTabBarHidden = false
-    
+    @ObservedObject private var chrome = TabBarChrome.shared
+
     var body: some View {
-        ZStack(alignment: .bottom) {
-            // โซนเนื้อหาหลัก
-            TabView(selection: $selectedTab) {
-                // 1. Home (Placeholder)
+        TabView(selection: $selectedTab) {
+            // 1. Home (Placeholder)
+            Tab(AppTab.home.title, systemImage: AppTab.home.rawValue, value: .home) {
                 NavigationStack {
                     Text("Vertex Super App")
                         .font(.largeTitle).bold()
                         .navigationTitle("Home")
                 }
-                .tag(AppTab.home)
-                .toolbar(.hidden, for: .tabBar) // ต้องซ่อนจากข้างใน Tab
-                
-                // 2. Pet Domain (ที่เราทำกันไว้)
+                .toolbarVisibility(.hidden, for: .tabBar)
+            }
+
+            // 2. Pet Domain
+            Tab(AppTab.pet.title, systemImage: AppTab.pet.rawValue, value: .pet) {
                 NavigationStack {
                     PetDomainDashboardView()
                 }
-                .tag(AppTab.pet)
-                .toolbar(.hidden, for: .tabBar)
-                
-                // 3. Finance (Placeholder)
+                .toolbarVisibility(.hidden, for: .tabBar)
+            }
+
+            // 3. Finance (Placeholder)
+            Tab(AppTab.finance.title, systemImage: AppTab.finance.rawValue, value: .finance) {
                 NavigationStack {
                     Text("Finance Hub")
                         .font(.largeTitle).bold()
                         .navigationTitle("Finance")
                 }
-                .tag(AppTab.finance)
-                .toolbar(.hidden, for: .tabBar)
-                
-                // 4. EV
+                .toolbarVisibility(.hidden, for: .tabBar)
+            }
+
+            // 4. EV
+            Tab(AppTab.ev.title, systemImage: AppTab.ev.rawValue, value: .ev) {
                 NavigationStack {
                     EVDomainDashboardView()
                 }
-                .tag(AppTab.ev)
-                .toolbar(.hidden, for: .tabBar)
-                
-                // 5. Profile
+                .toolbarVisibility(.hidden, for: .tabBar)
+            }
+
+            // 5. Profile
+            Tab(AppTab.profile.title, systemImage: AppTab.profile.rawValue, value: .profile) {
                 NavigationStack {
                     ProfileView()
                 }
-                .tag(AppTab.profile)
-                .toolbar(.hidden, for: .tabBar)
+                .toolbarVisibility(.hidden, for: .tabBar)
             }
-            // (เอา toolbar .hidden ของเก่าตรงนี้ออก เพราะมันไม่ทำงานในระดับ TabView)
-            
-            // โซน Custom Floating TabBar
-            VStack {
-                Spacer()
-                FloatingTabBar(selectedTab: $selectedTab)
-            }
-            .ignoresSafeArea(.keyboard) // ป้องกัน TabBar ลอยขึ้นมาตอนพิมพ์คีย์บอร์ด
+        }
+        // วาง bar ผ่าน safeAreaInset เพื่อให้ content ทุก tab (รวมหน้า push)
+        // ได้ inset ด้านล่างอัตโนมัติ ไม่ต้องเผื่อระยะเองเหมือน overlay แบบเก่า
+        .safeAreaInset(edge: .bottom) {
+            LiquidGlassTabBar(selectedTab: $selectedTab, isCompact: chrome.isCompact)
         }
         .task {
             await petStore.loadAllPets()
@@ -88,98 +132,57 @@ struct ContentView: View {
                 selectedTab = .ev
             }
         }
+        .onChange(of: selectedTab) {
+            // เปลี่ยน tab แล้วให้ bar ขยายกลับ ไม่ค้างสถานะหดจาก tab ก่อน
+            chrome.reset()
+        }
     }
 }
 
-// Custom Component: Floating Tab Bar แบบกระจก (Glassmorphism)
-struct FloatingTabBar: View {
+// Tab bar แบบ Instagram บน iOS 26: Liquid Glass จริงจาก glassEffect()
+// ตอนเลื่อนลง bar หดเตี้ยลง (ซ่อน label, ย่อไอคอน) แต่ยังเห็นครบทุกเมนู
+struct LiquidGlassTabBar: View {
     @Binding var selectedTab: AppTab
+    var isCompact: Bool
     @Namespace private var tabAnimation
-    @State private var tabTaps: [AppTab: Int] = [
-        .home: 0, .pet: 0, .finance: 0, .ev: 0, .profile: 0
-    ]
-    
+
     var body: some View {
-        GeometryReader { proxy in
-            let totalWidth = proxy.size.width
-            let tabWidth = totalWidth / CGFloat(AppTab.allCases.count)
-            
-            HStack(spacing: 0) {
-                ForEach(AppTab.allCases, id: \.self) { tab in
-                    VStack(spacing: 4) {
+        HStack(spacing: 0) {
+            ForEach(AppTab.allCases, id: \.self) { tab in
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        selectedTab = tab
+                    }
+                } label: {
+                    VStack(spacing: 3) {
                         Image(systemName: tab.rawValue)
-                            .font(.system(size: 22))
-                            // เอฟเฟกต์กระตุกเบาๆ เฉพาะไอคอนที่เพิ่งโดนกด
-                            .symbolEffect(.bounce, value: tabTaps[tab])
-                            // ขยายขนาดไอคอนที่ถูกเลือก
-                            .scaleEffect(selectedTab == tab ? 1.15 : 1.0)
-                        
-                        Text(tab.title)
-                            .font(.system(size: 10, weight: selectedTab == tab ? .bold : .medium))
-                    }
-                    .foregroundColor(selectedTab == tab ? .primary : .gray)
-                    .frame(width: tabWidth)
-                    .padding(.vertical, 8)
-                    .background(
-                        ZStack {
-                            if selectedTab == tab {
-                                GlassPillView()
-                                    .matchedGeometryEffect(id: "ACTIVETAB", in: tabAnimation)
-                            }
-                        }
-                    )
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        tabTaps[tab, default: 0] += 1
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                            selectedTab = tab
+                            .font(.system(size: isCompact ? 17 : 22))
+                        if !isCompact {
+                            Text(tab.title)
+                                .font(.system(size: 10, weight: selectedTab == tab ? .bold : .medium))
                         }
                     }
+                    .foregroundStyle(selectedTab == tab ? Color.accentColor : Color.secondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, isCompact ? 7 : 10)
+                    .background {
+                        if selectedTab == tab {
+                            Capsule()
+                                .fill(Color.accentColor.opacity(0.15))
+                                .matchedGeometryEffect(id: "ACTIVETAB", in: tabAnimation)
+                        }
+                    }
+                    .contentShape(Capsule())
                 }
+                .buttonStyle(.plain)
             }
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        let location = value.location.x
-                        let index = Int(location / tabWidth)
-                        let safeIndex = max(0, min(index, AppTab.allCases.count - 1))
-                        let newTab = AppTab.allCases[safeIndex]
-                        
-                        if selectedTab != newTab {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-                                selectedTab = newTab
-                            }
-                            tabTaps[newTab, default: 0] += 1
-                        }
-                    }
-            )
         }
-        .frame(height: 60) // GeometryReader needs a defined height
-        .padding(.vertical, 4)
         .padding(.horizontal, 8)
-        // Liquid Glass (iOS 26 Style)
-        .background(
-            ZStack {
-                Capsule()
-                    .fill(.ultraThinMaterial)
-                Capsule()
-                    .fill(Color(UIColor.secondarySystemGroupedBackground).opacity(0.8))
-            }
-        )
-        .overlay(
-            Capsule()
-                .stroke(
-                    LinearGradient(
-                        colors: [.white.opacity(0.5), .clear, .white.opacity(0.2)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
-        )
-        .shadow(color: .black.opacity(0.15), radius: 15, x: 0, y: 10)
-        .padding(.horizontal, 20)
-        .padding(.bottom, 10)
+        .padding(.vertical, 4)
+        .glassEffect(.regular, in: Capsule())
+        .padding(.horizontal, isCompact ? 64 : 20)
+        .padding(.bottom, 4)
+        .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isCompact)
     }
 }
 

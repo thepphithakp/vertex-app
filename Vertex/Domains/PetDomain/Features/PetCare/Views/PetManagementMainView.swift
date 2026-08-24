@@ -75,14 +75,12 @@ struct PetManagementMainView: View {
                         }
                     }
                 }
+                .compactsTabBarOnScroll()
                 .refreshable {
                     await petStore.loadAllPets(force: true)
                     viewModel.pets = petStore.allPets
                 }
             }
-        }
-        .safeAreaInset(edge: .bottom) {
-            Color.clear.frame(height: 90)
         }
         .navigationTitle("My Cats")
         .toolbar {

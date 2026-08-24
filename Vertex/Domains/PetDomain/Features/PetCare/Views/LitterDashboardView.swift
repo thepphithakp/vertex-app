@@ -129,12 +129,12 @@ struct LitterDashboardView: View {
             }
             .padding(.vertical)
         }
+        .compactsTabBarOnScroll()
         .refreshable {
             if viewModel.selectedPet != nil {
                 await viewModel.loadLogs(repository: SyncLitterRepository(context: context))
             }
         }
-        .safeAreaInset(edge: .bottom) { Color.clear.frame(height: 90) }
         .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("Litter Box")
         .onAppear {

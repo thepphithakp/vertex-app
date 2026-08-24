@@ -193,7 +193,7 @@ struct PetAnalyticsDashboardView: View {
             }
             .padding(.vertical)
         }
-        .compactsTabBarOnScroll()
+        .tabBarAware()
         .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("Analytics")
         .onAppear {

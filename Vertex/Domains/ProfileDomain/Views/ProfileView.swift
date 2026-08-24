@@ -177,7 +177,7 @@ struct ProfileView: View {
                 }
                 .padding(.top, 20)
             }
-            .compactsTabBarOnScroll()
+            .tabBarAware()
         }
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)

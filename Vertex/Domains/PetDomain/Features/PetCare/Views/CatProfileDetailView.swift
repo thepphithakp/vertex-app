@@ -149,7 +149,7 @@ struct CatProfileDetailView: View {
             }
             .padding(.top)
         }
-        .compactsTabBarOnScroll()
+        .tabBarAware()
         .navigationTitle("Profile")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

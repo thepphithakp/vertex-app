@@ -21,8 +21,15 @@ enum AppTab: String, CaseIterable {
     }
 }
 
+enum TabBarMetrics {
+    // พื้นที่ที่กันไว้ให้ tab bar — คงที่เสมอแม้ bar จะหด
+    // ถ้าผูกกับความสูงจริงของ bar layout ของ content จะขยับทุกครั้งที่หด/ขยาย
+    // ค่านี้ = ความสูง bar ตอนขยาย (~69) + ระยะห่างจาก content
+    static let reservedHeight: CGFloat = 88
+}
+
 // สถานะการหดของ tab bar — แชร์ให้ทุกหน้าที่ scroll ได้สั่งหด/ขยายผ่าน
-// compactsTabBarOnScroll() โดยไม่ต้องส่ง binding ทะลุหลายชั้น
+// tabBarAware() โดยไม่ต้องส่ง binding ทะลุหลายชั้น
 @MainActor
 final class TabBarChrome: ObservableObject {
     static let shared = TabBarChrome()
@@ -57,12 +64,20 @@ final class TabBarChrome: ObservableObject {
 }
 
 extension View {
-    // ติดที่ ScrollView/List เพื่อให้ tab bar หดตอนเลื่อนลงและขยายตอนเลื่อนขึ้น
-    func compactsTabBarOnScroll() -> some View {
+    /// ติดที่ ScrollView/List ของทุกหน้าที่อยู่ใต้ tab bar — ทำสองอย่าง:
+    /// กันพื้นที่ด้านล่างไม่ให้ content มุดใต้แถบ และสั่งให้แถบหดเมื่อเลื่อนลง
+    ///
+    /// ต้องติดที่ตัว scroll view เท่านั้น ติดที่ TabView หรือ NavigationStack ข้างนอก
+    /// ไม่ได้ผล เพราะ safeAreaInset ไม่ทะลุเข้าไปถึง content ของ tab
+    /// และไม่ทะลุถึงหน้าที่ push เข้าไปใน stack
+    func tabBarAware() -> some View {
         onScrollGeometryChange(for: CGFloat.self) { geometry in
             geometry.contentOffset.y + geometry.contentInsets.top
         } action: { oldValue, newValue in
             TabBarChrome.shared.scrollChanged(from: oldValue, to: newValue)
+        }
+        .safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: TabBarMetrics.reservedHeight)
         }
     }
 }
@@ -74,56 +89,57 @@ struct ContentView: View {
     @ObservedObject private var chrome = TabBarChrome.shared
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            // 1. Home (Placeholder)
-            Tab(AppTab.home.title, systemImage: AppTab.home.rawValue, value: .home) {
-                NavigationStack {
-                    Text("Vertex Super App")
-                        .font(.largeTitle).bold()
-                        .navigationTitle("Home")
+        ZStack(alignment: .bottom) {
+            TabView(selection: $selectedTab) {
+                // 1. Home
+                Tab(AppTab.home.title, systemImage: AppTab.home.rawValue, value: .home) {
+                    NavigationStack {
+                        Text("Vertex Super App")
+                            .font(.largeTitle).bold()
+                            .navigationTitle("Home")
+                    }
+                    .toolbarVisibility(.hidden, for: .tabBar)
                 }
-                .toolbarVisibility(.hidden, for: .tabBar)
+
+                // 2. Pet Domain
+                Tab(AppTab.pet.title, systemImage: AppTab.pet.rawValue, value: .pet) {
+                    NavigationStack {
+                        PetDomainDashboardView()
+                    }
+                    .toolbarVisibility(.hidden, for: .tabBar)
+                }
+
+                // 3. Finance (Placeholder)
+                Tab(AppTab.finance.title, systemImage: AppTab.finance.rawValue, value: .finance) {
+                    NavigationStack {
+                        Text("Finance Hub")
+                            .font(.largeTitle).bold()
+                            .navigationTitle("Finance")
+                    }
+                    .toolbarVisibility(.hidden, for: .tabBar)
+                }
+
+                // 4. EV
+                Tab(AppTab.ev.title, systemImage: AppTab.ev.rawValue, value: .ev) {
+                    NavigationStack {
+                        EVDomainDashboardView()
+                    }
+                    .toolbarVisibility(.hidden, for: .tabBar)
+                }
+
+                // 5. Profile
+                Tab(AppTab.profile.title, systemImage: AppTab.profile.rawValue, value: .profile) {
+                    NavigationStack {
+                        ProfileView()
+                    }
+                    .toolbarVisibility(.hidden, for: .tabBar)
+                }
             }
 
-            // 2. Pet Domain
-            Tab(AppTab.pet.title, systemImage: AppTab.pet.rawValue, value: .pet) {
-                NavigationStack {
-                    PetDomainDashboardView()
-                }
-                .toolbarVisibility(.hidden, for: .tabBar)
-            }
-
-            // 3. Finance (Placeholder)
-            Tab(AppTab.finance.title, systemImage: AppTab.finance.rawValue, value: .finance) {
-                NavigationStack {
-                    Text("Finance Hub")
-                        .font(.largeTitle).bold()
-                        .navigationTitle("Finance")
-                }
-                .toolbarVisibility(.hidden, for: .tabBar)
-            }
-
-            // 4. EV
-            Tab(AppTab.ev.title, systemImage: AppTab.ev.rawValue, value: .ev) {
-                NavigationStack {
-                    EVDomainDashboardView()
-                }
-                .toolbarVisibility(.hidden, for: .tabBar)
-            }
-
-            // 5. Profile
-            Tab(AppTab.profile.title, systemImage: AppTab.profile.rawValue, value: .profile) {
-                NavigationStack {
-                    ProfileView()
-                }
-                .toolbarVisibility(.hidden, for: .tabBar)
-            }
-        }
-        // วาง bar ผ่าน safeAreaInset เพื่อให้ content ทุก tab (รวมหน้า push)
-        // ได้ inset ด้านล่างอัตโนมัติ ไม่ต้องเผื่อระยะเองเหมือน overlay แบบเก่า
-        .safeAreaInset(edge: .bottom) {
             LiquidGlassTabBar(selectedTab: $selectedTab, isCompact: chrome.isCompact)
+                .frame(height: TabBarMetrics.reservedHeight, alignment: .bottom)
         }
+        .ignoresSafeArea(.keyboard)
         .task {
             await petStore.loadAllPets()
         }

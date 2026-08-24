@@ -75,7 +75,7 @@ struct PetManagementMainView: View {
                         }
                     }
                 }
-                .compactsTabBarOnScroll()
+                .tabBarAware()
                 .refreshable {
                     await petStore.loadAllPets(force: true)
                     viewModel.pets = petStore.allPets

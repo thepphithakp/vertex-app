@@ -142,7 +142,7 @@ struct PetDomainDashboardView: View {
             }
             .padding(.top)
         }
-        .compactsTabBarOnScroll()
+        .tabBarAware()
         .refreshable {
             // Pull to refresh fetches explicitly, bypassing TTL
             await petStore.loadAllPets(force: true)
@@ -436,7 +436,7 @@ struct WaterDashboardView: View {
             }
             .padding(.vertical)
         }
-        .compactsTabBarOnScroll()
+        .tabBarAware()
         .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("Water Tracker")
         .navigationBarTitleDisplayMode(.inline)

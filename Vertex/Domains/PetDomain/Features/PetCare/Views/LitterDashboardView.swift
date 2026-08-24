@@ -129,7 +129,7 @@ struct LitterDashboardView: View {
             }
             .padding(.vertical)
         }
-        .compactsTabBarOnScroll()
+        .tabBarAware()
         .refreshable {
             if viewModel.selectedPet != nil {
                 await viewModel.loadLogs(repository: SyncLitterRepository(context: context))

@@ -115,7 +115,7 @@ struct AppointmentListView: View {
                         }
                     }
                 }
-                .compactsTabBarOnScroll()
+                .tabBarAware()
                 .listStyle(.plain)
                 .animation(.bouncy, value: viewModel.appointments)
             }

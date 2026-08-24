@@ -94,9 +94,7 @@ struct ContentView: View {
                 // 1. Home
                 Tab(AppTab.home.title, systemImage: AppTab.home.rawValue, value: .home) {
                     NavigationStack {
-                        Text("Vertex Super App")
-                            .font(.largeTitle).bold()
-                            .navigationTitle("Home")
+                        HomeDashboardView(selectedTab: $selectedTab)
                     }
                     .toolbarVisibility(.hidden, for: .tabBar)
                 }
@@ -112,9 +110,12 @@ struct ContentView: View {
                 // 3. Finance (Placeholder)
                 Tab(AppTab.finance.title, systemImage: AppTab.finance.rawValue, value: .finance) {
                     NavigationStack {
-                        Text("Finance Hub")
-                            .font(.largeTitle).bold()
-                            .navigationTitle("Finance")
+                        ComingSoonView(
+                            icon: "chart.pie.fill",
+                            title: "Finance",
+                            message: "ติดตามรายรับรายจ่ายและงบประมาณ กำลังพัฒนา"
+                        )
+                        .navigationBarHidden(true)
                     }
                     .toolbarVisibility(.hidden, for: .tabBar)
                 }

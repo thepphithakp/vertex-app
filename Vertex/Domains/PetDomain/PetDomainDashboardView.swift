@@ -528,9 +528,17 @@ struct WaterDashboardView: View {
     private func loadInsight() async {
         guard let pet = selectedPet else { return }
 
+        // ⚠️ `to` ต้องเป็นเวลาในวันนี้ ไม่ใช่เที่ยงคืนของพรุ่งนี้
+        //
+        // server แบ่งถังตามวันของ timezone ที่ติดมากับ from/to แล้วเติมวันที่ไม่มี
+        // ข้อมูลเป็น 0 ให้ครบช่วง ส่ง 00:00 ของพรุ่งนี้ไปจะได้ถังเพิ่มมาอีกวัน
+        // ค่าเฉลี่ยเลยถูกหารด้วย 8 แทนที่จะเป็น 7 และ LLM ก็เขียนว่า
+        // "ค่าเฉลี่ย 8 วันล่าสุด" ตามตัวเลขที่ได้รับ — เห็นตอนทดสอบบนจอจริง
+        // เรื่องเดียวกับ VT-105
         let calendar = Calendar.current
-        let endOfToday = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))!
-        let from = calendar.date(byAdding: .day, value: -6, to: calendar.startOfDay(for: Date()))!
+        let today = calendar.startOfDay(for: Date())
+        let endOfToday = calendar.date(bySettingHour: 23, minute: 59, second: 0, of: today)!
+        let from = calendar.date(byAdding: .day, value: -6, to: today)!
 
         isLoadingInsight = true
         defer { isLoadingInsight = false }

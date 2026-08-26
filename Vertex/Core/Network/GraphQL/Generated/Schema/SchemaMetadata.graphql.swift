@@ -38,6 +38,7 @@ extension VertexAPI {
       "User": VertexAPI.Objects.User,
       "Viewer": VertexAPI.Objects.Viewer,
       "WaterDailyBucket": VertexAPI.Objects.WaterDailyBucket,
+      "WaterInsight": VertexAPI.Objects.WaterInsight,
       "WaterLog": VertexAPI.Objects.WaterLog,
       "WaterLogConnection": VertexAPI.Objects.WaterLogConnection,
       "WaterLogEdge": VertexAPI.Objects.WaterLogEdge,

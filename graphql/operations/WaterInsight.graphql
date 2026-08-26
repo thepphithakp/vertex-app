@@ -1,0 +1,18 @@
+# การ์ด AI บนหน้าน้ำ (VT-108)
+#
+# แยก query ออกจาก WaterDay โดยตั้งใจ — ฟิลด์นี้ออกไปเรียก LLM นอกคลัสเตอร์
+# ถ้าพ่วงไปกับ WaterDay จะถูกยิงใหม่ทุกครั้งที่ผู้ใช้กดเปลี่ยนวันหรือกดเพิ่มน้ำ
+#
+# waterInsight เป็น nullable — ไม่มี key, เรียกไม่สำเร็จ หรือเกิน quota
+# จะได้ null แล้วแอปต้องแสดงข้อความสำรองของตัวเองแทน ห้ามปล่อยการ์ดว่าง
+query WaterInsight($petId: UUID!, $from: DateTime!, $to: DateTime!) {
+  pet(id: $petId) {
+    id
+    waterInsight(from: $from, to: $to) {
+      text
+      model
+      generatedAt
+      cached
+    }
+  }
+}

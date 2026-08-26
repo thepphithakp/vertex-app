@@ -179,6 +179,12 @@ struct WaterDashboardView: View {
     @State private var lastUpdated: Date? = nil
     @State private var showDeleteConfirmation: Bool = false
     @State private var logToDelete: WaterLog? = nil
+
+    // คำวิเคราะห์จาก LLM ที่ BFF สร้างให้ (VT-108)
+    // nil = ยังไม่ได้โหลด หรือ server บอกว่าใช้ไม่ได้รอบนี้
+    // ทั้งสองกรณีตกไปใช้ aiAnalysisText(for:) ซึ่งเป็นข้อความสำรอง
+    @State private var aiInsight: String?
+    @State private var isLoadingInsight = false
     
     var body: some View {
         ScrollView {
@@ -198,6 +204,7 @@ struct WaterDashboardView: View {
                 } else {
                     CatSelectorCarousel(pets: petStore.allPets, selectedPet: $selectedPet)
                         .onChange(of: selectedPet) {
+                            aiInsight = nil
                             Task { await loadLogs() }
                         }
                 }
@@ -297,10 +304,25 @@ struct WaterDashboardView: View {
                                 .foregroundColor(.purple)
                         }
                         
-                        Text(aiAnalysisText(for: progress))
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
+                        if isLoadingInsight && aiInsight == nil {
+                            HStack(spacing: 6) {
+                                ProgressView().controlSize(.small)
+                                Text("กำลังวิเคราะห์…")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                        } else {
+                            // มีข้อความจาก LLM ก็ใช้ ไม่มีก็ใช้ของสำรอง
+                            // ผู้ใช้ต้องได้อ่านอะไรสักอย่างเสมอ
+                            Text(aiInsight ?? aiAnalysisText(for: progress))
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Text("คำแนะนำนี้ไม่ใช่การวินิจฉัยของสัตวแพทย์")
+                            .font(.caption2)
+                            .foregroundColor(.secondary.opacity(0.7))
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -453,6 +475,7 @@ struct WaterDashboardView: View {
                 selectedPet = petStore.activePet ?? petStore.allPets.first
             }
             Task { await loadLogs() }
+            Task { await loadInsight() }
         }
     }
     
@@ -494,6 +517,42 @@ struct WaterDashboardView: View {
         }
     }
     
+    /// ดึงคำวิเคราะห์จาก BFF (VT-108)
+    ///
+    /// มองย้อนหลัง 7 วันเพราะการดื่มน้ำวันเดียวบอกอะไรไม่ได้มาก
+    /// ส่วนที่ตัดสินว่าจะเรียก LLM จริงหรือคืนของใน cache อยู่ที่ BFF
+    /// แอปแค่ถามไปตรงๆ ทุกครั้งที่เปิดหน้า
+    ///
+    /// error ทุกชนิดกลืนทิ้งโดยตั้งใจ — การ์ดนี้เป็นของเสริม
+    /// ล้มแล้วต้องไม่รบกวนการบันทึกน้ำซึ่งเป็นงานหลักของหน้านี้
+    private func loadInsight() async {
+        guard let pet = selectedPet else { return }
+
+        let calendar = Calendar.current
+        let endOfToday = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: Date()))!
+        let from = calendar.date(byAdding: .day, value: -6, to: calendar.startOfDay(for: Date()))!
+
+        isLoadingInsight = true
+        defer { isLoadingInsight = false }
+
+        do {
+            let data = try await VertexGraphQL.fetch(
+                VertexAPI.WaterInsightQuery(
+                    petId: pet.id.uuidString,
+                    from: VertexAPI.dateTime(from: from),
+                    to: VertexAPI.dateTime(from: endOfToday)
+                )
+            )
+            // null = server บอกว่ารอบนี้ไม่มีคำวิเคราะห์ (ไม่ได้เปิด feature,
+            // เรียกไม่ผ่าน หรือเกิน quota) ปล่อยให้ข้อความสำรองทำงานต่อ
+            aiInsight = data.pet?.waterInsight?.text
+        } catch {
+            aiInsight = nil
+        }
+    }
+
+    /// ข้อความสำรองเวลา LLM ใช้ไม่ได้ — เป็นกฎ if/else ตามช่วงของเป้าหมาย
+    /// จงใจเก็บไว้เพื่อให้การ์ดไม่เคยว่าง ไม่ใช่ของที่ลืมลบ
     private func aiAnalysisText(for progress: CGFloat) -> String {
         guard let pet = selectedPet else { return "กำลังวิเคราะห์ข้อมูล..." }
         

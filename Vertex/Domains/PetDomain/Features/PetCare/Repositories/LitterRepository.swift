@@ -70,11 +70,19 @@ final class SyncLitterRepository: LitterRepository {
             )
 
             if let remote = data.pet?.litterLogs.edges.map(\.node) {
-                var seen = Set<UUID>()
+                // รวมของจาก server เข้ากับของในเครื่อง แต่**ไม่ลบ**ของที่ server ไม่มี
+                //
+                // เคยเขียนให้ลบแล้วพังทันที: การบันทึกฝั่งทรายเป็น fire-and-forget
+                // ที่ debounce 5 วินาที ผู้ใช้กด +1 แล้วหน้าจอโหลดใหม่ทันที
+                // ตอนนั้น server ยังไม่มีบันทึกนั้น แถวที่เพิ่งสร้างจึงถูกลบทิ้ง
+                // ตัวเลขเด้งกลับเป็น 0 แล้วผู้ใช้ก็กดซ้ำจนได้ข้อมูลซ้อน
+                //
+                // "server ไม่มี" จึงไม่ได้แปลว่า "ถูกลบไปแล้ว" — แปลว่ายังไม่ได้ push
+                // หรือ push ไม่สำเร็จก็ได้ ซึ่ง LitterSyncManager ทิ้งเงียบๆ อยู่
+                // จะลบได้ต้องรู้ก่อนว่าแถวไหนเคยขึ้น server สำเร็จแล้วจริง (VT-106)
                 for node in remote {
                     guard let uuid = UUID(uuidString: node.id),
                           let logDate = VertexAPI.date(from: node.date) else { continue }
-                    seen.insert(uuid)
 
                     if let existing = pet.litterLogs.first(where: { $0.id == uuid }) {
                         existing.amount = node.amount
@@ -85,17 +93,6 @@ final class SyncLitterRepository: LitterRepository {
                         newLog.id = uuid
                         newLog.pet = pet
                         context.insert(newLog)
-                    }
-                }
-
-                // ลบของที่หายไปจาก server แล้ว
-                //
-                // ตอนที่ดึงประวัติทั้งก้อนมาก็ไม่เคยลบ ทำให้บันทึกที่คนอื่นลบไป
-                // ยังค้างอยู่บนเครื่องนี้ตลอด ตอนนี้รู้แน่ว่า server มีอะไรบ้างในวันนั้น
-                // จึงตัดของที่ไม่มีแล้วออกได้อย่างปลอดภัย
-                for local in pet.litterLogs where local.date >= startOfDay && local.date < endOfDay {
-                    if !seen.contains(local.id) {
-                        context.delete(local)
                     }
                 }
             }
@@ -193,11 +190,12 @@ final class SyncWaterRepository: WaterRepository {
             )
 
             if let remote = data.pet?.waterLogs.edges.map(\.node) {
-                var seen = Set<UUID>()
+                // ไม่ลบของที่ server ไม่มี ด้วยเหตุผลเดียวกับฝั่งทราย
+                // ฝั่งน้ำ push ทันทีก็จริง แต่ error ถูกกลืนด้วย print เฉยๆ
+                // แถวที่ push ไม่ผ่านจึงเหลืออยู่แต่ในเครื่อง ลบไปคือข้อมูลผู้ใช้หาย
                 for node in remote {
                     guard let uuid = UUID(uuidString: node.id),
                           let logDate = VertexAPI.date(from: node.date) else { continue }
-                    seen.insert(uuid)
 
                     if let existing = pet.waterLogs.first(where: { $0.id == uuid }) {
                         existing.amount = node.amount
@@ -207,12 +205,6 @@ final class SyncWaterRepository: WaterRepository {
                         newLog.id = uuid
                         newLog.pet = pet
                         context.insert(newLog)
-                    }
-                }
-
-                for local in pet.waterLogs where local.date >= startOfDay && local.date < endOfDay {
-                    if !seen.contains(local.id) {
-                        context.delete(local)
                     }
                 }
             }

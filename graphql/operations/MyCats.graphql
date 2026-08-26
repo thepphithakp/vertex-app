@@ -1,0 +1,7 @@
+# รายการแมว — ไม่เอา avatar เป็น base64 อีกแล้ว
+# client เอา avatarUrl ไปโหลดผ่าน PetAvatarStore ที่มี ETag cache อยู่แล้ว
+query MyCats {
+  viewer {
+    pets { ...PetCoreFields }
+  }
+}

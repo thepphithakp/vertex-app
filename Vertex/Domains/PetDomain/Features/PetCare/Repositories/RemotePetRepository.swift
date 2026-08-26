@@ -5,52 +5,47 @@ class RemotePetRepository: PetRepository {
     
     // MARK: - Pet Operations
     
+    /// ดึงแมวทั้งหมดผ่าน GraphQL (VT-102)
+    ///
+    /// ขนาด response พอๆ กับ `GET /pets` เพราะเซิร์ฟเวอร์เลิกส่ง `avatarData`
+    /// ไปกับรายการแล้ว ที่ได้จริงคือ bloodType / allergies / personality
+    /// ซึ่ง REST ส่งมาอยู่แล้วแต่ `PetDTO` ไม่ได้ decode หน้าโปรไฟล์เลยขึ้น
+    /// "ไม่ระบุ" มาตลอด — ตรงนี้ schema บังคับให้ครบ เพิ่ม field แล้วลืมรับไม่ได้
     func fetchPets() async throws -> [Pet] {
-        let dtos: [PetDTO] = try await NetworkManager.shared.request(endpoint: "/pets")
-        let pets = dtos.map { $0.toDomain() }
-        await Self.attachAvatars(to: pets, from: dtos)
+        let data = try await VertexGraphQL.fetch(VertexAPI.MyCatsQuery())
+        let fragments = data.viewer.pets.map { $0.fragments.petCoreFields }
+        let pets = try fragments.map { try Pet(graphQL: $0) }
+        await Self.attachAvatars(to: pets, hasAvatar: fragments.map(\.hasAvatar))
         return pets
     }
 
     func getPet(by id: UUID) async throws -> Pet? {
-        let dto: PetDTO = try await NetworkManager.shared.request(endpoint: "/pets/\(id.uuidString)")
-        let pet = dto.toDomain()
-        await Self.attachAvatars(to: [pet], from: [dto])
+        let data = try await VertexGraphQL.fetch(VertexAPI.CatProfileQuery(petId: id.uuidString))
+        // null แปลว่าไม่มีตัวนี้ หรือผู้เรียกไม่มีสิทธิ์ดู — ทั้งสองกรณีคือ "ไม่เจอ"
+        guard let petData = data.pet else { return nil }
+
+        let fragment = petData.fragments.petCoreFields
+        let pet = try Pet(graphQL: fragment)
+        await Self.attachAvatars(to: [pet], hasAvatar: [fragment.hasAvatar])
         return pet
     }
 
-    /// เติม `avatarData` ให้ครบ ไม่ว่าเซิร์ฟเวอร์จะส่งรูปมากับรายการหรือไม่
+    /// เติม `avatarData` ให้ตัวที่เซิร์ฟเวอร์บอกว่ามีรูป
     ///
-    /// เซิร์ฟเวอร์กำลังทยอยเลิกส่ง `avatarData` ไปกับ `GET /pets` เพราะรูปรวม
-    /// หลายเมกะไบต์ทำให้หน้ารายการช้ามาก แล้วให้ไปดึงทีละตัวที่
-    /// `GET /pets/{id}/avatar` ซึ่ง cache ได้ด้วย ETag แทน
-    ///
-    /// รองรับทั้งสองแบบพร้อมกัน เพื่อให้แอปเวอร์ชันนี้ใช้ได้กับเซิร์ฟเวอร์
-    /// ทั้งก่อนและหลังปิดสวิตช์ ไม่ต้องปล่อยแอปให้ตรงจังหวะกัน
+    /// GraphQL ไม่ส่งตัวรูปมาให้เลยโดยตั้งใจ (ดู VT-98) รูปยังอยู่ที่ REST เดิม
+    /// ที่มี ETag อยู่แล้ว ครั้งแรกโหลดจริง ครั้งต่อไปได้ 304 ที่แทบไม่มีข้อมูล
     ///
     /// จอที่แสดงรูปยังอ่านจาก `pet.avatarData` เหมือนเดิม ไม่ต้องแก้อะไร
-    /// `Pet` เป็น `@Model` class จึงไม่ต้องรับเป็น inout — แก้ผ่าน reference ได้เลย
-    private static func attachAvatars(to pets: [Pet], from dtos: [PetDTO]) async {
-        let store = PetAvatarStore.shared
+    /// `Pet` เป็น `@Model` class จึงแก้ผ่าน reference ได้เลย ไม่ต้องรับเป็น inout
+    private static func attachAvatars(to pets: [Pet], hasAvatar: [Bool]) async {
+        guard pets.count == hasAvatar.count else { return }
 
-        // เซิร์ฟเวอร์ยังส่งรูปมา — เก็บลง cache ไว้ใช้รอบหน้า
-        // ใช้ storeIfAbsent เพื่อไม่ให้เขียนดิสก์ซ้ำทุกครั้งที่โหลดรายการ
-        for index in pets.indices {
-            if let data = dtos[index].avatarData {
-                await store.storeIfAbsent(data, for: pets[index].id)
-            }
-        }
-
-        // ตัวที่ไม่ได้รูปมาแต่เซิร์ฟเวอร์บอกว่ามี → ไปดึงมา
-        var needsAvatar: [Int] = []
-        for index in pets.indices where dtos[index].avatarData == nil && dtos[index].hasAvatar == true {
-            needsAvatar.append(index)
-        }
-
+        let needsAvatar = pets.indices.filter { hasAvatar[$0] }
         guard !needsAvatar.isEmpty else { return }
 
+        let store = PetAvatarStore.shared
+
         // ดึงพร้อมกันเพื่อไม่ให้หน้ารายการรอเป็นทอดๆ
-        // ครั้งแรกโหลดจริง ครั้งต่อไปได้ 304 ซึ่งแทบไม่มีข้อมูล
         await withTaskGroup(of: (Int, Data?).self) { group in
             for index in needsAvatar {
                 let petId = pets[index].id
@@ -65,7 +60,7 @@ class RemotePetRepository: PetRepository {
             }
         }
     }
-    
+
     func savePet(_ pet: Pet) async throws {
         let dto = PetDTO(from: pet)
         let encoder = JSONEncoder()

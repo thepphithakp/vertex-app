@@ -1,0 +1,22 @@
+# หน้า Analytics — เดิม group เองในเครื่องจาก log ที่ sync ลง SwiftData
+# และเมื่อไม่มีข้อมูลจะ "สุ่ม" ตัวเลขน้ำขึ้นมาแสดงพร้อมคำแนะนำสุขภาพ
+# ตอนนี้ให้ server สรุปให้ และวันที่ไม่มีข้อมูลเซิร์ฟเวอร์เติม 0 มาให้ครบแล้ว
+query PetAnalytics($petId: UUID!, $from: DateTime!, $to: DateTime!) {
+  pet(id: $petId) {
+    id
+    litterSummary(from: $from, to: $to) {
+      totalPoop
+      totalPee
+      avgPoopPerDay
+      avgPeePerDay
+      daily { date poop pee }
+    }
+    waterSummary(from: $from, to: $to) {
+      totalMl
+      avgMlPerDay
+      # null เมื่อยังไม่มีน้ำหนัก — เดิม client เดาเป็น 4 กก. แล้วแนะนำสุขภาพจากค่าเดา
+      dailyTargetMl
+      daily { date ml }
+    }
+  }
+}

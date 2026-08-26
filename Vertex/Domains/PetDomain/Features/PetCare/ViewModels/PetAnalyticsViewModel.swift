@@ -29,6 +29,16 @@ struct DailyWaterStat: Identifiable {
     let amount: Int
 }
 
+/// สรุปข้อมูลสำหรับหน้า Analytics — ดึงจาก BFF ผ่าน GraphQL (VT-102)
+///
+/// เดิมหน้านี้อ่าน `pet.litterLogs` / `pet.waterLogs` ที่ sync ลง SwiftData แล้ว
+/// group เองในเครื่อง ซึ่งมีสองปัญหา:
+///
+/// 1. ต้องดึง log ทั้งหมดตั้งแต่ต้นมาก่อนทุกครั้ง เพื่อจะดูแค่ช่วง 7 วัน
+/// 2. เมื่อไม่มีข้อมูลน้ำเลย มันจะ **สุ่มตัวเลขขึ้นมาแสดง** แล้วเอาไปออกคำแนะนำ
+///    สุขภาพต่อ ซึ่งเป็นข้อมูลสุขภาพสัตว์เลี้ยงที่ไม่จริง อันตรายกว่าการไม่แสดงอะไร
+///
+/// ตอนนี้ตัวเลขทั้งหมดมาจาก server และไม่มีการเติมค่าปลอมที่ไหนอีก
 @MainActor
 final class PetAnalyticsViewModel: ObservableObject {
     @Published var selectedTimeframe: AnalyticsTimeframe = .week
@@ -36,122 +46,79 @@ final class PetAnalyticsViewModel: ObservableObject {
     
     // Processed Data for Charts
     @Published var litterStats: [DailyLitterStat] = []
-    @Published var weightLogs: [WeightLog] = []
     @Published var waterStats: [DailyWaterStat] = []
-    
+
     // Summary Metrics
     @Published var avgPoopPerDay: Double = 0.0
     @Published var avgPeePerDay: Double = 0.0
-    @Published var weightChange: Double = 0.0
     @Published var avgWaterPerDay: Double = 0.0
+
+    /// เป้าหมายการกินน้ำต่อวันที่ server คำนวณจากน้ำหนักจริง
+    /// nil = ยังไม่มีน้ำหนักบันทึกไว้ ห้ามเดาแทน
+    @Published var dailyTargetMl: Int?
+
+    @Published var isLoading: Bool = false
     
-    func loadData() {
+    func loadData() async {
         guard let pet = selectedPet else {
             clearData()
             return
         }
-        
+
         let calendar = Calendar.current
-        let startDate = calendar.date(byAdding: .day, value: -selectedTimeframe.days, to: Date())!
-        
-        // 1. กรองและจัดกลุ่มข้อมูล Litter Logs
-        let filteredLitter = pet.litterLogs.filter { $0.date >= startDate }
-        
-        // เราจะรวมยอดรายวันเพื่อไม่ให้กราฟซ้อนกัน
-        var dailyDict: [String: [String: Int]] = [:] // ["YYYY-MM-DD": ["Poop": 2, "Pee": 3]]
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        
-        var totalPoop = 0
-        var totalPee = 0
-        
-        for log in filteredLitter {
-            let dateString = formatter.string(from: log.date)
-            if dailyDict[dateString] == nil { dailyDict[dateString] = ["Poop": 0, "Pee": 0] }
-            dailyDict[dateString]?[log.type, default: 0] += log.amount
-            
-            if log.type == "Poop" { totalPoop += log.amount }
-            else if log.type == "Pee" { totalPee += log.amount }
-        }
-        
-        // เติมข้อมูลให้ครบทุกวันใน Timeframe (วันไหนไม่มีข้อมูลให้เป็น 0) จะได้วาดกราฟได้สวยงามและแกน X ไม่หาย
-        var stats: [DailyLitterStat] = []
-        for i in 0..<selectedTimeframe.days {
-            let date = calendar.date(byAdding: .day, value: -i, to: Date())!
-            let dateStr = formatter.string(from: date)
-            let counts = dailyDict[dateStr] ?? ["Poop": 0, "Pee": 0]
-            
-            stats.append(DailyLitterStat(date: date, type: "Poop", amount: counts["Poop"] ?? 0))
-            stats.append(DailyLitterStat(date: date, type: "Pee", amount: counts["Pee"] ?? 0))
-        }
-        self.litterStats = stats.sorted(by: { $0.date < $1.date })
-        
-        // คำนวณค่าเฉลี่ย
-        let daysCount = Double(selectedTimeframe.days)
-        self.avgPoopPerDay = Double(totalPoop) / daysCount
-        self.avgPeePerDay = Double(totalPee) / daysCount
-        
-        // 2. กรองข้อมูล น้ำหนัก
-        // เนื่องจากโครงสร้าง WeightLog อาจจะผูกกับ Pet ไว้ แต่ใน Schema เรายังไม่ได้ผูก Relationship ในฝั่ง Pet
-        // เดี๋ยวผมจะจำลองข้อมูลให้ดูก่อนถ้าไม่มีข้อมูล
-        
-        // สร้าง Dummy Data ของน้ำหนักเพื่อให้เห็นกราฟชัดเจน (เนื่องจากปัจจุบันเรายังไม่มีหน้าบันทึกน้ำหนักรายวัน)
-        var dummyWeights: [WeightLog] = []
-        for i in 0..<selectedTimeframe.days {
-            let date = calendar.date(byAdding: .day, value: -i, to: Date())!
-            // สุ่มน้ำหนักแกว่งไปมาทีละนิด
-            let baseWeight = pet.currentWeight ?? 5.0
-            let randomDiff = Double.random(in: -0.2...0.2)
-            dummyWeights.append(WeightLog(weight: baseWeight + randomDiff, dateRecorded: date))
-        }
-        self.weightLogs = dummyWeights.sorted(by: { $0.dateRecorded < $1.dateRecorded })
-        
-        if let first = self.weightLogs.first, let last = self.weightLogs.last {
-            self.weightChange = last.weight - first.weight
-        }
-        
-        // 3. กรองและจัดกลุ่มข้อมูล Water Logs
-        let filteredWater = pet.waterLogs.filter { $0.date >= startDate }
-        var waterDailyDict: [String: Int] = [:]
-        var totalWater = 0
-        
-        for log in filteredWater {
-            let dateString = formatter.string(from: log.date)
-            waterDailyDict[dateString, default: 0] += log.amount
-            totalWater += log.amount
-        }
-        
-        var wStats: [DailyWaterStat] = []
-        for i in 0..<selectedTimeframe.days {
-            let date = calendar.date(byAdding: .day, value: -i, to: Date())!
-            let dateStr = formatter.string(from: date)
-            let amount = waterDailyDict[dateStr] ?? 0
-            wStats.append(DailyWaterStat(date: date, amount: amount))
-        }
-        
-        // ถ้าไม่มีข้อมูลการกินน้ำเลยในตลอดช่วงเวลา ให้สุ่ม Dummy Data ขึ้นมาให้ดูสวยงาม (สำหรับ Showcase)
-        if totalWater == 0 {
-            let targetWater = (pet.currentWeight ?? 4.0) * 50.0
-            wStats = []
-            for i in 0..<selectedTimeframe.days {
-                let date = calendar.date(byAdding: .day, value: -i, to: Date())!
-                let randomAmount = Int.random(in: Int(targetWater * 0.6)...Int(targetWater * 1.2))
-                wStats.append(DailyWaterStat(date: date, amount: randomAmount))
-                totalWater += randomAmount
+        let to = Date()
+        let from = calendar.startOfDay(
+            for: calendar.date(byAdding: .day, value: -(selectedTimeframe.days - 1), to: to)!
+        )
+
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let data = try await VertexGraphQL.fetch(
+                VertexAPI.PetAnalyticsQuery(
+                    petId: pet.id.uuidString,
+                    from: VertexAPI.dateTime(from: from),
+                    to: VertexAPI.dateTime(from: to)
+                )
+            )
+
+            guard let summary = data.pet else {
+                clearData()
+                return
             }
+
+            // เซิร์ฟเวอร์เติมวันที่ไม่มีข้อมูลเป็น 0 มาให้ครบแล้ว
+            // ฝั่งแอปจึงไม่ต้องวนเติมวันเองเหมือนเดิม
+            litterStats = summary.litterSummary.daily.flatMap { bucket -> [DailyLitterStat] in
+                guard let date = VertexAPI.date(from: bucket.date) else { return [] }
+                return [
+                    DailyLitterStat(date: date, type: "Poop", amount: bucket.poop),
+                    DailyLitterStat(date: date, type: "Pee", amount: bucket.pee),
+                ]
+            }
+            avgPoopPerDay = summary.litterSummary.avgPoopPerDay
+            avgPeePerDay = summary.litterSummary.avgPeePerDay
+
+            waterStats = summary.waterSummary.daily.compactMap { bucket in
+                guard let date = VertexAPI.date(from: bucket.date) else { return nil }
+                return DailyWaterStat(date: date, amount: bucket.ml)
+            }
+            avgWaterPerDay = summary.waterSummary.avgMlPerDay
+            dailyTargetMl = summary.waterSummary.dailyTargetMl
+
+        } catch {
+            // error เด้ง dialog ให้แล้วใน VertexGraphQL — ที่นี่แค่อย่าค้างข้อมูลเก่าไว้
+            clearData()
         }
-        
-        self.waterStats = wStats.sorted(by: { $0.date < $1.date })
-        self.avgWaterPerDay = Double(totalWater) / daysCount
     }
     
     private func clearData() {
         litterStats = []
-        weightLogs = []
         waterStats = []
         avgPoopPerDay = 0
         avgPeePerDay = 0
-        weightChange = 0
         avgWaterPerDay = 0
+        dailyTargetMl = nil
     }
 }

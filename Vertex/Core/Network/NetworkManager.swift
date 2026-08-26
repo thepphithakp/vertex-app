@@ -189,11 +189,17 @@ struct APIError: Error, LocalizedError {
 }
 
 // MARK: - Insecure SSL Delegate for Dev
-class InsecureSessionDelegate: NSObject, URLSessionDelegate {
-    func urlSession(
-        _ session: URLSession,
-        didReceive challenge: URLAuthenticationChallenge,
-        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+/// รับ certificate ของเซิร์ฟเวอร์ dev ที่ระบบไม่เชื่อถือ
+///
+/// ต้อง conform `URLSessionTaskDelegate` ด้วย ไม่ใช่แค่ `URLSessionDelegate`
+/// เพราะ Apollo ส่ง delegate ให้ `URLSession.bytes(for:delegate:)` ในระดับ task
+/// (`session.delegate as? URLSessionTaskDelegate`) ถ้า cast ไม่ผ่านจะได้ nil
+/// แล้ว challenge จะไม่ถูกส่งมาที่นี่เลย ทุก GraphQL query จะล้มที่ชั้น TLS
+/// ด้วยข้อความว่า certificate ไม่ถูกต้อง ทั้งที่ REST ผ่านได้ตามปกติ
+class InsecureSessionDelegate: NSObject, URLSessionTaskDelegate {
+    private func accept(
+        _ challenge: URLAuthenticationChallenge,
+        _ completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
     ) {
         // Bypass SSL check for development server
         if let trust = challenge.protectionSpace.serverTrust {
@@ -201,6 +207,23 @@ class InsecureSessionDelegate: NSObject, URLSessionDelegate {
         } else {
             completionHandler(.performDefaultHandling, nil)
         }
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        accept(challenge, completionHandler)
+    }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didReceive challenge: URLAuthenticationChallenge,
+        completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
+    ) {
+        accept(challenge, completionHandler)
     }
 }
 import SwiftUI

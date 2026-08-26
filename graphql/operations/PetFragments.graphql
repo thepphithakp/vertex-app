@@ -1,0 +1,25 @@
+# ชุด field ของแมวที่ domain model `Pet` ต้องใช้ครบทุกตัว
+#
+# ทำเป็น fragment เพราะหน้ารายการกับหน้าโปรไฟล์ map ลง model ตัวเดียวกัน
+# ถ้าแยกกันเขียนแล้วเผลอเพิ่ม field ที่หน้าเดียว จะได้ Pet ที่ข้อมูลไม่เท่ากัน
+# ขึ้นอยู่กับว่าเข้ามาจากหน้าไหน ซึ่งหาสาเหตุยากมาก
+fragment PetCoreFields on Pet {
+  id
+  name
+  species
+  breed
+  colorCode
+  birthDate
+  gender
+  currentWeight
+  microchipId
+  isSpayedNeutered
+  # สามอันนี้ REST ส่งมาอยู่แล้วแต่ PetDTO ฝั่งแอปไม่ได้รับ
+  # หน้าโปรไฟล์เลยขึ้น "ไม่ระบุ" มาตลอด
+  bloodType
+  allergies
+  personality
+  # ใช้ตัดสินว่าต้องไปดึงรูปจาก REST ที่มี ETag ต่อไหม
+  hasAvatar
+  owner { id fullName }
+}

@@ -1,0 +1,18 @@
+{
+  "schemaNamespace" : "VertexAPI",
+  "input" : {
+    "operationSearchPaths" : [ "operations/**/*.graphql" ],
+    "schemaSearchPaths" : [ "schema.graphqls" ]
+  },
+  "output" : {
+    "testMocks" : { "none" : {} },
+    "schemaTypes" : {
+      "path" : "../Vertex/Core/Network/GraphQL/Generated",
+      "moduleType" : { "embeddedInTarget" : { "name" : "Vertex" } }
+    },
+    "operations" : { "inSchemaModule" : {} }
+  },
+  "options" : {
+    "operationDocumentFormat" : [ "definition" ]
+  }
+}

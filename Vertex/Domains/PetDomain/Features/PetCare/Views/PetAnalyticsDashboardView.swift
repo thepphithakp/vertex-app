@@ -27,8 +27,8 @@ struct PetAnalyticsDashboardView: View {
                     .pickerStyle(.segmented)
                 }
                 .padding(.horizontal)
-                .onChange(of: viewModel.selectedPet) { _, _ in viewModel.loadData() }
-                .onChange(of: viewModel.selectedTimeframe) { _, _ in viewModel.loadData() }
+                .onChange(of: viewModel.selectedPet) { _, _ in Task { await viewModel.loadData() } }
+                .onChange(of: viewModel.selectedTimeframe) { _, _ in Task { await viewModel.loadData() } }
                 
                 if viewModel.selectedPet == nil {
                     Text("Please select a cat to view analytics.")
@@ -62,12 +62,15 @@ struct PetAnalyticsDashboardView: View {
                             color: .cyan
                         )
                         
+                        // เดิมการ์ดนี้แสดง "การเปลี่ยนแปลงน้ำหนัก" ที่คำนวณจากน้ำหนักที่สุ่มขึ้นมา
+                        // ยังไม่มี endpoint บันทึกน้ำหนักรายวัน จึงเปลี่ยนมาแสดงเป้าหมายการกินน้ำ
+                        // ที่ server คำนวณจากน้ำหนักจริง และบอกตรงๆ เมื่อยังไม่รู้
                         AnalyticsKPICard(
-                            title: "การเปลี่ยนแปลง นน.",
-                            value: String(format: "%+.1f", viewModel.weightChange),
-                            unit: "kg",
-                            icon: "scalemass",
-                            color: viewModel.weightChange > 0 ? .red : (viewModel.weightChange < 0 ? .green : .blue)
+                            title: "เป้าหมายน้ำ/วัน",
+                            value: viewModel.dailyTargetMl.map(String.init) ?? "—",
+                            unit: viewModel.dailyTargetMl == nil ? "ยังไม่มีน้ำหนัก" : "ml",
+                            icon: "target",
+                            color: .blue
                         )
                     }
                     .padding(.horizontal)
@@ -104,40 +107,6 @@ struct PetAnalyticsDashboardView: View {
                             .cornerRadius(16)
                             .padding(.horizontal)
                         }
-                    }
-                    
-                    // 4. กราฟน้ำหนัก (Line Chart)
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Weight Trend (แนวโน้มน้ำหนัก)")
-                            .font(.headline)
-                            .padding(.horizontal)
-                        
-                        Chart {
-                            ForEach(viewModel.weightLogs) { log in
-                                LineMark(
-                                    x: .value("Date", log.dateRecorded, unit: .day),
-                                    y: .value("Weight", log.weight)
-                                )
-                                .interpolationMethod(.catmullRom) // ทำให้เส้นกราฟโค้งมนสวยงาม
-                                .foregroundStyle(Color.blue)
-                                .symbol(Circle().strokeBorder(lineWidth: 2))
-                                
-                                AreaMark(
-                                    x: .value("Date", log.dateRecorded, unit: .day),
-                                    yStart: .value("Min", log.weight - 0.5), // แรเงาใต้กราฟ
-                                    yEnd: .value("Max", log.weight)
-                                )
-                                .interpolationMethod(.catmullRom)
-                                .foregroundStyle(LinearGradient(colors: [Color.blue.opacity(0.3), .clear], startPoint: .top, endPoint: .bottom))
-                            }
-                        }
-                        // ไม่ต้องให้กราฟเริ่มที่ 0 กิโล เพราะเส้นกราฟจะแบนเกินไป ให้กราฟซูมที่ช่วงน้ำหนักจริง
-                        .chartYScale(domain: .automatic(includesZero: false))
-                        .frame(height: 250)
-                        .padding()
-                        .background(Color(UIColor.secondarySystemGroupedBackground))
-                        .cornerRadius(16)
-                        .padding(.horizontal)
                     }
                     
                     // 5. กราฟการกินน้ำ (Area/Bar Chart)
@@ -199,7 +168,7 @@ struct PetAnalyticsDashboardView: View {
         .onAppear {
             if viewModel.selectedPet == nil {
                 viewModel.selectedPet = petStore.activePet ?? petStore.allPets.first
-                viewModel.loadData()
+                Task { await viewModel.loadData() }
             }
         }
     }
@@ -207,7 +176,9 @@ struct PetAnalyticsDashboardView: View {
     private func generateInsight() -> String {
         let poop = viewModel.avgPoopPerDay
         let water = viewModel.avgWaterPerDay
-        let targetWater = (viewModel.selectedPet?.currentWeight ?? 4.0) * 50.0 // 50ml per kg
+        // เป้าหมายมาจาก server ที่คำนวณจากน้ำหนักจริง — nil แปลว่ายังไม่มีน้ำหนักบันทึกไว้
+        // เดิมตรงนี้เดาเป็น 4 กก. แล้วออกคำแนะนำสุขภาพจากค่าเดา
+        let targetWater = viewModel.dailyTargetMl.map(Double.init)
         
         var insights: [String] = []
         
@@ -219,7 +190,7 @@ struct PetAnalyticsDashboardView: View {
             insights.append("สุขภาพการขับถ่ายอยู่ในเกณฑ์ดีเยี่ยม! 🌟")
         }
         
-        if water > 0 {
+        if water > 0, let targetWater {
             if water < (targetWater * 0.7) {
                 insights.append("น้องกินน้ำน้อยกว่าเกณฑ์ (ควรได้ประมาณ \(Int(targetWater)) ml/วัน) เสี่ยงต่อโรคไตและนิ่ว แนะนำให้ตั้งน้ำหลายๆ จุด 💧")
             } else if water <= (targetWater * 1.3) {
@@ -227,6 +198,8 @@ struct PetAnalyticsDashboardView: View {
             } else {
                 insights.append("น้องกินน้ำเยอะกว่าปกติ สังเกตว่าฉี่บ่อยผิดปกติหรือไม่ อาจเป็นสัญญาณเตือนโรคไตหรือเบาหวาน 🚨")
             }
+        } else if water > 0 {
+            insights.append("ยังบอกไม่ได้ว่าน้องกินน้ำพอไหม เพราะยังไม่ได้บันทึกน้ำหนัก — เกณฑ์คิดจากน้ำหนักตัว")
         }
         
         if insights.isEmpty {

@@ -1,0 +1,25 @@
+# หน้าน้ำและหน้าทราย ของวันเดียว
+#
+# เดิมเรียก GET /pets/{id}/litter-logs ที่คืนประวัติ "ทั้งหมดตั้งแต่ต้น"
+# แล้วมากรองเหลือวันเดียวในเครื่อง ยิ่งใช้นานยิ่งช้าลงเรื่อยๆ
+#
+# ยังไม่ย้ายฝั่งเขียนมาเป็น mutation ในรอบนี้ เพราะการบันทึกเป็นแบบ offline-first
+# เขียนลง SwiftData ทันทีแล้ว sync ทีหลังแบบ debounce ผ่าน LitterSyncManager
+# การย้ายต้องรื้อกลไกนั้นทั้งชุด แยกเป็นอีกก้าวจะปลอดภัยกว่า
+query WaterDay($petId: UUID!, $from: DateTime!, $to: DateTime!) {
+  pet(id: $petId) {
+    id
+    waterLogs(from: $from, to: $to, first: 200) {
+      edges { node { id date amount } }
+    }
+  }
+}
+
+query LitterDay($petId: UUID!, $from: DateTime!, $to: DateTime!) {
+  pet(id: $petId) {
+    id
+    litterLogs(from: $from, to: $to, first: 200) {
+      edges { node { id date type amount } }
+    }
+  }
+}

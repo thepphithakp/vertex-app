@@ -1,0 +1,9 @@
+# โปรไฟล์แมวทีละตัว
+#
+# ยังไม่ดึง caregivers/viewerPermissions ในรอบนี้ เพราะ model ฝั่งแอปเก็บสิทธิ์
+# เป็น boolean คนละรูปแบบกับ server ที่เป็นรายการ permission — ย้ายแยกอีกก้าว
+query CatProfile($petId: UUID!) {
+  pet(id: $petId) {
+    ...PetCoreFields
+  }
+}

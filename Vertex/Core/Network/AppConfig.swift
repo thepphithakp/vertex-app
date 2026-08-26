@@ -23,4 +23,19 @@ struct AppConfig {
             return URL(string: "https://api.vertex.app/api")!
         }
     }
+
+    /// ปลายทาง GraphQL ของ BFF
+    ///
+    /// อยู่คนละ path กับ REST (`/graphql` ไม่ใช่ `/api/v1`) เพราะเป็นคนละ service
+    /// ที่ ingress ส่งต่อให้ตาม path — ดู VT-101
+    var graphqlURL: URL {
+        switch currentEnvironment {
+        case .development:
+            return URL(string: "https://thepphithakp.trueddns.com:22371/graphql")!
+        case .staging:
+            return URL(string: "https://staging.vertex.app/graphql")!
+        case .production:
+            return URL(string: "https://api.vertex.app/graphql")!
+        }
+    }
 }

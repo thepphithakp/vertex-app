@@ -204,8 +204,12 @@ struct WaterDashboardView: View {
                 } else {
                     CatSelectorCarousel(pets: petStore.allPets, selectedPet: $selectedPet)
                         .onChange(of: selectedPet) {
+                            // ล้างของแมวตัวเก่าแล้วต้องโหลดของตัวใหม่ด้วย
+                            // เดิมล้างอย่างเดียว การ์ดเลยตกไปใช้ข้อความสำรอง
+                            // ค้างอยู่อย่างนั้นจนกว่าจะออกแล้วเข้าหน้าใหม่
                             aiInsight = nil
                             Task { await loadLogs() }
+                            Task { await loadInsight() }
                         }
                 }
                 

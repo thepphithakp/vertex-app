@@ -112,68 +112,6 @@ struct VertexWidgetEntryView : View {
     }
 }
 
-import ActivityKit
-
-struct ParkingLiveActivity: Widget {
-    var body: some WidgetConfiguration {
-        ActivityConfiguration(for: ParkingAttributes.self) { context in
-            // Lock screen/banner UI
-            VStack {
-                HStack {
-                    Image(systemName: context.state.isDoubleParked ? "exclamationmark.triangle.fill" : "car.circle.fill")
-                        .foregroundColor(context.state.isDoubleParked ? .yellow : .blue)
-                    Text(context.state.isDoubleParked ? "DOUBLE PARKED" : "PARKED")
-                        .font(.headline)
-                        .foregroundColor(context.state.isDoubleParked ? .yellow : .white)
-                    Spacer()
-                    Text("\(context.state.floor) - \(context.state.zone)")
-                        .font(.title3.bold())
-                        .foregroundColor(.white)
-                }
-                if context.state.isDoubleParked {
-                    Text("Please move car before 13:00")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.8))
-                }
-            }
-            .padding()
-            .background(context.state.isDoubleParked ? Color.red.opacity(0.8) : Color.blue.opacity(0.8))
-        } dynamicIsland: { context in
-            DynamicIsland {
-                DynamicIslandExpandedRegion(.leading) {
-                    Image(systemName: context.state.isDoubleParked ? "exclamationmark.triangle.fill" : "car.circle.fill")
-                        .foregroundColor(context.state.isDoubleParked ? .yellow : .blue)
-                }
-                DynamicIslandExpandedRegion(.trailing) {
-                    Text("\(context.state.floor)-\(context.state.zone)")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                }
-                DynamicIslandExpandedRegion(.bottom) {
-                    if context.state.isDoubleParked {
-                        Text("⚠️ Double Parked! Move before 13:00")
-                            .font(.caption)
-                            .foregroundColor(.yellow)
-                    } else {
-                        Text("Parked Safely")
-                            .font(.caption)
-                            .foregroundColor(.green)
-                    }
-                }
-            } compactLeading: {
-                Image(systemName: context.state.isDoubleParked ? "exclamationmark.triangle.fill" : "car.circle.fill")
-                    .foregroundColor(context.state.isDoubleParked ? .yellow : .blue)
-            } compactTrailing: {
-                Text(context.state.floor)
-                    .foregroundColor(.white)
-            } minimal: {
-                Image(systemName: "car.circle.fill")
-                    .foregroundColor(context.state.isDoubleParked ? .yellow : .blue)
-            }
-        }
-    }
-}
-
 @main
 struct VertexWidgetBundle: WidgetBundle {
     var body: some Widget {

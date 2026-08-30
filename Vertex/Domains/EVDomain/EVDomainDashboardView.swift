@@ -261,6 +261,9 @@ struct EVDomainDashboardView: View {
         }
         .tabBarAware()
         .background(Color(UIColor.systemGroupedBackground).ignoresSafeArea())
+        // สีของการ์ดคำนวณตอน render สีจึงค้างอยู่ที่ค่าตอน update ครั้งล่าสุด
+        // เปิดแอปทีก็ push state ใหม่ให้ที เพื่อให้ระดับความเร่งด่วนตามความจริง
+        .onAppear { updateLiveActivity() }
     }
     
     private func openEditMode() {
@@ -336,27 +339,51 @@ struct EVDomainDashboardView: View {
     
     private func updateLiveActivity() {
         Task {
-            if isParked {
-                let state = ParkingAttributes.ContentState(isDoubleParked: isDoubleParked, floor: parkedFloor, zone: parkedZone)
-                let content = ActivityContent(state: state, staleDate: nil)
-                
-                if let currentActivity = Activity<ParkingAttributes>.activities.first {
-                    await currentActivity.update(content)
-                } else if ActivityAuthorizationInfo().areActivitiesEnabled {
-                    let attributes = ParkingAttributes()
-                    do {
-                        _ = try Activity.request(attributes: attributes, content: content)
-                    } catch {
-                        print("Error starting Live Activity: \(error)")
-                    }
-                }
-            } else {
-                for activity in Activity<ParkingAttributes>.activities {
-                    let state = ParkingAttributes.ContentState(isDoubleParked: false, floor: "", zone: "")
-                    let content = ActivityContent(state: state, staleDate: nil)
-                    await activity.end(content, dismissalPolicy: .immediate)
+            guard isParked else {
+                await endLiveActivity()
+                return
+            }
+
+            let startedAt = parkedDate ?? Date()
+            let moveBy = isDoubleParked ? ParkingDeadline.next(after: startedAt) : nil
+
+            let state = ParkingAttributes.ContentState(
+                isDoubleParked: isDoubleParked,
+                floor: parkedFloor,
+                zone: parkedZone,
+                parkedAt: startedAt,
+                moveBy: moveBy,
+                note: parkedNotes.isEmpty ? nil : parkedNotes
+            )
+
+            // staleDate คือจังหวะเดียวที่การ์ดจะเปลี่ยนเป็นสีแดงได้เองโดยแอปไม่ต้องตื่น
+            // ระบบจะสั่ง render ใหม่พร้อม isStale = true ตอนถึงเวลานี้พอดี
+            //
+            // ⚠️ ถ้าส่ง staleDate ที่เป็นอดีตไป ActivityKit จะไม่ยอมเริ่ม activity เลย
+            //    การ์ดจะไม่ขึ้นเงียบๆ พอดีกับตอนที่ควรเตือนที่สุด คือเปิดแอปหลัง 13:00
+            //    ทั้งที่รถยังจอดซ้อนอยู่ (เจอตอนถ่ายหน้าจอสถานะ overdue บน simulator)
+            let content = ActivityContent(
+                state: state,
+                staleDate: moveBy.flatMap { $0 > Date() ? $0 : nil },
+                relevanceScore: isDoubleParked ? 100 : 50
+            )
+
+            if let currentActivity = Activity<ParkingAttributes>.activities.first {
+                await currentActivity.update(content)
+            } else if ActivityAuthorizationInfo().areActivitiesEnabled {
+                do {
+                    _ = try Activity.request(attributes: ParkingAttributes(), content: content)
+                } catch {
+                    print("Error starting Live Activity: \(error)")
                 }
             }
+        }
+    }
+
+    private func endLiveActivity() async {
+        for activity in Activity<ParkingAttributes>.activities {
+            let state = ParkingAttributes.ContentState(isDoubleParked: false, floor: "", zone: "")
+            await activity.end(ActivityContent(state: state, staleDate: nil), dismissalPolicy: .immediate)
         }
     }
 }
